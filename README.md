@@ -10,7 +10,7 @@ The **Nicarjon Apartment System** automates the complexities of rental managemen
 
 #### **🛡️ Admin Dashboard**
 
-* **Billing Engine:** Automatic calculation of utilities based on meter readings.  
+* **Billing Engine:** Automatic calculation of utilities based on meter readings with configurable dynamic rates.
   * Electricity Rate: ₱21.00 / kWh  
   * Water Rate: ₱70.00 / m³  
 * **Smart Invoicing:** Handles split billing periods (Rent Period vs. Utility Period) in a single invoice.  
@@ -29,7 +29,7 @@ The **Nicarjon Apartment System** automates the complexities of rental managemen
 
 This project is built using a modern, type-safe stack:
 
-* **Framework:** [Next.js 15+](https://nextjs.org/) (App Router)  
+* **Framework:** [Next.js 16+](https://nextjs.org/) (App Router)  
 * **Language:** [TypeScript](https://www.typescriptlang.org/)  
 * **Database:** [PostgreSQL](https://www.postgresql.org/)  
 * **ORM:** [Drizzle ORM](https://orm.drizzle.team/)  
