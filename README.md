@@ -1,10 +1,10 @@
-# **Nicarjon Apartment System**
+# **Rental-Management-System**
 
 A modern, full-stack rental management solution designed for efficient property administration and tenant convenience. This system features a robust Admin Dashboard for property managers and a dedicated Tenant Portal for residents.
 
 ## **🚀 Overview**
 
-The **Nicarjon Apartment System** automates the complexities of rental management. It handles split-period billing, utility calculations (water/electricity), room occupancy tracking, and tenant archives. It uses a custom billing engine to ensure accurate financial records, accounting for previous balances, penalties, and credits.
+The **Rental-Management-System** automates the complexities of rental management. It handles split-period billing, utility calculations (water/electricity), room occupancy tracking, and tenant archives. It uses a custom billing engine to ensure accurate financial records, accounting for previous balances, penalties, and credits.
 
 ### **Key Features**
 
@@ -47,8 +47,8 @@ This project is built using a modern, type-safe stack:
 
 ### **1\. Clone the repository**
 
-git clone \[https://github.com/yourusername/nicarjon-apartment-system.git\](https://github.com/yourusername/nicarjon-apartment-system.git)  
-cd nicarjon-apartment-system
+git clone \[https://github.com/themarneilx/Rental-Management-System.git\]
+cd Rental-Management-System
 
 ### **2\. Install dependencies**
 
