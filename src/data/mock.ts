@@ -4,9 +4,11 @@ export interface Tenant {
   email: string;
   phone: string;
   unitId: string | null;
+  previousRoomId?: string | null; // New field for archived tenants
   status: string;
   leaseEnd: string;
   deposit: number;
+  previousRoom?: Unit | null; // Include previous room details
   // keeping these for compatibility if needed, but primary structure follows design.jsx
   idPhoto?: string;
   contract?: string;

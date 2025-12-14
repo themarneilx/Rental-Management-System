@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Tenant, Unit } from "@/data/mock";
-import { Search, Plus, LogOut, X, Eye, Pencil } from "lucide-react";
+import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
@@ -18,6 +18,10 @@ export default function TenantsPage() {
   const [isViewTenantModalOpen, setIsViewTenantModalOpen] = useState(false);
   const [isEditTenantModalOpen, setIsEditTenantModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+
+  // Archive Modal State
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [tenantToArchive, setTenantToArchive] = useState<Tenant | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -37,6 +41,15 @@ export default function TenantsPage() {
             email: t.email || '',
             phone: t.phone,
             unitId: t.roomId,
+            previousRoomId: t.previousRoomId, // Map new field
+            previousRoom: t.previousRoom ? { // Map previousRoom object
+                id: t.previousRoom.id,
+                name: t.previousRoom.name,
+                building: t.previousRoom.building?.name || 'Unknown',
+                type: t.previousRoom.type,
+                rent: Number(t.previousRoom.rent),
+                status: t.previousRoom.status,
+            } : null,
             status: t.status,
             leaseEnd: t.leaseEnd?.split('T')[0] || '',
             deposit: Number(t.deposit)
@@ -76,7 +89,6 @@ export default function TenantsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newTenantData,
-          password: 'defaultPassword123', // Temporary default
           roomId: newTenantData.unitId
         })
       });
@@ -115,18 +127,38 @@ export default function TenantsPage() {
     setSelectedTenant(null);
   };
 
-  const handleArchiveTenant = (tenantId: string) => {
-    if (window.confirm('Are you sure you want to move this tenant to archives? This will free up their unit.')) {
-      setTenants(prev => prev.map(t => {
-        if (t.id === tenantId) {
-          if (t.unitId) {
-            setUnits(uPrev => uPrev.map(u => u.id === t.unitId ? { ...u, status: 'Vacant' } : u));
+  const handleArchiveClick = (tenant: Tenant) => {
+      setTenantToArchive(tenant);
+      setIsArchiveModalOpen(true);
+  };
+
+  const confirmArchive = async () => {
+      if (!tenantToArchive) return;
+      
+      try {
+          const res = await fetch(`/api/tenants/${tenantToArchive.id}/archive`, {
+              method: 'PUT'
+          });
+          
+          if (res.ok) {
+              setTenants(prev => prev.map(t => {
+                if (t.id === tenantToArchive.id) {
+                  if (t.unitId) {
+                    setUnits(uPrev => uPrev.map(u => u.id === t.unitId ? { ...u, status: 'Vacant' } : u));
+                  }
+                  return { ...t, status: 'Archived', unitId: null };
+                }
+                return t;
+              }));
+              setIsArchiveModalOpen(false);
+              setTenantToArchive(null);
+          } else {
+              alert("Failed to archive tenant");
           }
-          return { ...t, status: 'Archived', unitId: null };
-        }
-        return t;
-      }));
-    }
+      } catch (error) {
+          console.error("Error archiving tenant:", error);
+          alert("Error archiving tenant");
+      }
   };
 
   const openViewTenant = (tenant: Tenant) => {
@@ -199,7 +231,12 @@ export default function TenantsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {tenantUnit ? (
+                      {tenant.status === 'Archived' && tenant.previousRoom ? (
+                         <div>
+                            <div className="text-sm font-medium text-slate-900">{tenant.previousRoom.name} <span className="text-xs text-slate-400">(Prev.)</span></div>
+                            <div className="text-xs text-slate-500">{tenant.previousRoom.building}</div>
+                         </div>
+                      ) : tenantUnit ? (
                          <div>
                             <div className="text-sm font-medium text-slate-900">{tenantUnit.name}</div>
                             <div className="text-xs text-slate-500">{tenantUnit.building}</div>
@@ -232,7 +269,7 @@ export default function TenantsPage() {
                               <Pencil className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => handleArchiveTenant(tenant.id)}
+                            onClick={() => handleArchiveClick(tenant)}
                             className="text-slate-400 hover:text-rose-600 transition-colors"
                             title="Move to Archive"
                           >
@@ -272,6 +309,14 @@ export default function TenantsPage() {
              onSubmit={handleUpdateTenant}
           />
       )}
+
+      {isArchiveModalOpen && tenantToArchive && (
+          <ArchiveConfirmationModal
+             onClose={() => setIsArchiveModalOpen(false)}
+             onConfirm={confirmArchive}
+             tenant={tenantToArchive}
+          />
+      )}
     </div>
   );
 }
@@ -283,8 +328,18 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
     phone: '',
     unitId: '',
     leaseEnd: '',
-    deposit: 0
+    deposit: 0,
+    password: ''
   });
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let pass = "";
+    for (let i = 0; i < 10; i++) {
+        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData(prev => ({ ...prev, password: pass }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,6 +372,18 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
                   value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
              </div>
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Temporary Password</label>
+            <div className="flex gap-2">
+                <input required type="text" className="flex-1 p-2 border border-slate-200 rounded-lg font-mono text-sm" 
+                  value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="Click generate" />
+                <button type="button" onClick={generatePassword} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors" title="Generate Password">
+                    <RefreshCw className="w-4 h-4" />
+                </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Assign Unit</label>
             <select required className="w-full p-2 border border-slate-200 rounded-lg"
@@ -475,5 +542,34 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
             </form>
         </div>
     </ModalPortal>
+    );
+}
+function ArchiveConfirmationModal({ onClose, onConfirm, tenant }: { onClose: () => void, onConfirm: () => void, tenant: Tenant }) {
+    return (
+        <ModalPortal>
+            <div className="modal modal-open z-[70]">
+                <div className="modal-box w-full max-w-sm bg-white rounded-xl shadow-2xl p-0 overflow-hidden">
+                    <div className="p-6 text-center">
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 mb-4">
+                            <AlertTriangle className="h-6 w-6 text-rose-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">Archive Tenant?</h3>
+                        <p className="text-sm text-slate-500">
+                            Are you sure you want to archive <span className="font-bold text-slate-700">{tenant.name}</span>?
+                        </p>
+                        <p className="text-sm text-slate-500 mt-2">
+                            This will release <span className="font-bold text-slate-700">Unit {tenant.unitId ? 'assigned' : 'N/A'}</span> to Vacant status.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 px-4 py-3 flex justify-center gap-3 border-t border-slate-100">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+                        <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-sm">Confirm Archive</button>
+                    </div>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button onClick={onClose}>close</button>
+                </form>
+            </div>
+        </ModalPortal>
     );
 }

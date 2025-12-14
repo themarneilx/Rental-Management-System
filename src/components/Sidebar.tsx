@@ -10,12 +10,14 @@ import {
   Receipt, 
   ShieldCheck, 
   Archive, 
-  LogOut 
+  LogOut,
+  User 
 } from "lucide-react";
 
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  user: { name: string; email: string } | null;
 }
 
 const MENU_ITEMS = [
@@ -25,23 +27,12 @@ const MENU_ITEMS = [
   { href: '/admin/billings', label: 'Billing & Meter', icon: Receipt },
   { href: '/admin/admins', label: 'Admins', icon: ShieldCheck },
   { href: '/admin/archive', label: 'Archives', icon: Archive },
+  { href: '/admin/profile', label: 'Profile', icon: User },
 ];
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
+export default function Sidebar({ sidebarOpen, setSidebarOpen, user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.name) {
-          setUser(data);
-        }
-      })
-      .catch(err => console.error(err));
-  }, []);
 
   const handleLogout = async () => {
     try {

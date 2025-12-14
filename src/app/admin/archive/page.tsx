@@ -23,6 +23,14 @@ export default function ArchivePage() {
             email: t.email || '',
             phone: t.phone,
             unitId: t.roomId,
+            previousRoom: t.previousRoom ? {
+                id: t.previousRoom.id,
+                name: t.previousRoom.name,
+                building: t.previousRoom.building?.name || 'Unknown',
+                type: t.previousRoom.type,
+                rent: Number(t.previousRoom.rent),
+                status: t.previousRoom.status,
+            } : null,
             status: t.status,
             leaseEnd: t.leaseEnd?.split('T')[0] || '',
             deposit: Number(t.deposit)
@@ -88,9 +96,15 @@ export default function ArchivePage() {
                         <div>{tenant.email}</div>
                         <div className="text-xs">{tenant.phone}</div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 italic">
-                        {/* We don't store previous unit name easily yet, unless we query history. */}
-                        {tenant.unitId || 'Not Assigned'} 
+                    <td className="px-6 py-4 text-slate-500">
+                        {tenant.previousRoom ? (
+                            <div>
+                                <span className="font-medium text-slate-700">{tenant.previousRoom.name}</span>
+                                <span className="text-xs block text-slate-400">{tenant.previousRoom.building}</span>
+                            </div>
+                        ) : (
+                            <span className="italic">Not Assigned</span>
+                        )}
                     </td>
                     <td className="px-6 py-4 font-mono text-slate-600">{tenant.leaseEnd}</td>
                     <td className="px-6 py-4"><Badge status="Archived" /></td>

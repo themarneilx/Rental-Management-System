@@ -10,6 +10,7 @@ export const admins = pgTable("admins", {
   password: text("password").notNull(), // Hashed with bcrypt
   role: text("role").notNull(), // 'Super Admin', 'Property Manager', 'Billing Admin'
   status: text("status").default("Active").notNull(),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -26,6 +27,7 @@ export const tenants = pgTable("tenants", {
   
   // Foreign Key
   roomId: uuid("room_id").references(() => rooms.id),
+  previousRoomId: uuid("previous_room_id").references(() => rooms.id),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -34,6 +36,10 @@ export const tenants = pgTable("tenants", {
 export const tenantsRelations = relations(tenants, ({ one, many }) => ({
   room: one(rooms, {
     fields: [tenants.roomId],
+    references: [rooms.id],
+  }),
+  previousRoom: one(rooms, {
+    fields: [tenants.previousRoomId],
     references: [rooms.id],
   }),
   invoices: many(invoices),

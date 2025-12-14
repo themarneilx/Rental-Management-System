@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { tenants, rooms } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request) {
   const admin = await verifyAdmin();
@@ -16,7 +17,8 @@ export async function GET(request: Request) {
     const allTenants = await db.query.tenants.findMany({
       where: eq(tenants.status, status),
       with: {
-        room: true,
+        room: true, // Current room
+        previousRoom: status === 'Archived' ? { with: { building: true } } : undefined, // Previous room for archived tenants
       },
       orderBy: [desc(tenants.createdAt)],
     });
@@ -63,11 +65,13 @@ export async function POST(request: Request) {
 
     // Transaction to create tenant and update room status
     const result = await db.transaction(async (tx) => {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
       // 1. Create Tenant
       const [newTenant] = await tx.insert(tenants).values({
         name,
         email,
-        password, // TODO: Hash password
+        password: hashedPassword,
         phone,
         deposit,
         leaseEnd: new Date(leaseEnd).toISOString(),

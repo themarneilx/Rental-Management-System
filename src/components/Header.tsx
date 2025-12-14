@@ -5,9 +5,10 @@ import { Bell, MoreVertical } from "lucide-react";
 interface HeaderProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  initials: string;
 }
 
-export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
+export default function Header({ sidebarOpen, setSidebarOpen, initials }: HeaderProps) {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -34,7 +35,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
         </button>
         <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-sm ring-2 ring-blue-100">
-          A
+          {initials}
         </div>
       </div>
     </header>

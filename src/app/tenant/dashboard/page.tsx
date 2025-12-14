@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Building2, 
@@ -30,13 +30,54 @@ export default function TenantDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('home');
   const [userData, setUserData] = useState<TenantUser>(MOCK_TENANT_USER);
+  const [invoices, setInvoices] = useState<TenantInvoice[]>([]);
+  const [totalDue, setTotalDue] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [hasPendingPayment, setHasPendingPayment] = useState(false); // State for pending status
+  
+  // Password Change State
+  const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
+  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
-  const handleLogout = () => {
-    // In a real app, clear cookies/tokens here
-    router.push('/login');
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const res = await fetch('/api/tenant/dashboard');
+        if (res.ok) {
+          const data = await res.json();
+          setUserData(prev => ({
+            ...prev,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            unitName: data.unitName,
+            building: data.buildingName,
+            leaseEnd: data.leaseEnd,
+          }));
+          setInvoices(data.recentInvoices);
+          setTotalDue(data.totalDue);
+        } else {
+             // Handle 401 or errors
+             if (res.status === 401) {
+                 router.push('/login');
+             }
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data', error);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,6 +93,38 @@ export default function TenantDashboardPage() {
 
   const handlePaymentSuccess = () => {
       setHasPendingPayment(true);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setPasswordMsg({ type: '', text: '' });
+
+      if (passwordData.new !== passwordData.confirm) {
+          setPasswordMsg({ type: 'error', text: 'New passwords do not match' });
+          return;
+      }
+
+      try {
+          const res = await fetch('/api/tenant/password', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  currentPassword: passwordData.current,
+                  newPassword: passwordData.new
+              })
+          });
+          
+          const data = await res.json();
+          if (res.ok) {
+              setPasswordMsg({ type: 'success', text: 'Password updated successfully' });
+              setPasswordData({ current: '', new: '', confirm: '' });
+          } else {
+              setPasswordMsg({ type: 'error', text: data.error || 'Failed to update password' });
+          }
+      } catch (error) {
+          console.error(error);
+          setPasswordMsg({ type: 'error', text: 'An unexpected error occurred' });
+      }
   };
 
   const SidebarItem = ({ id, icon: Icon, label }: { id: string, icon: any, label: string }) => (
@@ -157,15 +230,15 @@ export default function TenantDashboardPage() {
                         </div>
                         <div>
                         <p className="text-slate-500 text-sm font-medium mb-1">Total Due</p>
-                        <h3 className="text-3xl font-bold text-slate-900">₱18,000</h3>
+                        <h3 className="text-3xl font-bold text-slate-900">₱{totalDue.toLocaleString()}</h3>
                         <p className="text-amber-600 text-sm mt-1 flex items-center gap-1">
-                            <Check className="w-3 h-3" /> Due Feb 28
+                            <Check className="w-3 h-3" /> {totalDue <= 0 ? 'No Balance Due' : 'Due Now'}
                         </p>
                         </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-slate-100">
                         <Button 
-                            disabled={hasPendingPayment}
+                            disabled={hasPendingPayment || totalDue <= 0}
                             onClick={() => !hasPendingPayment && setIsPaymentModalOpen(true)}
                             className="w-full py-2"
                             variant={hasPendingPayment ? 'outline' : 'primary'}
@@ -185,8 +258,10 @@ export default function TenantDashboardPage() {
                     </div>
                     <div>
                       <p className="text-slate-500 text-sm font-medium mb-1">Lease Ends</p>
-                      <h3 className="text-3xl font-bold text-slate-900">Dec 31</h3>
-                      <p className="text-slate-400 text-sm mt-1">2025</p>
+                      <h3 className="text-3xl font-bold text-slate-900">
+                        {new Date(userData.leaseEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </h3>
+                      <p className="text-slate-400 text-sm mt-1">{new Date(userData.leaseEnd).getFullYear()}</p>
                     </div>
                   </div>
                 </div>
@@ -200,7 +275,7 @@ export default function TenantDashboardPage() {
                     </Button>
                   </div>
                   <div className="space-y-4">
-                    {MOCK_TENANT_INVOICES.map((inv) => (
+                    {invoices.map((inv) => (
                       <div key={inv.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
                         <div className="flex items-center gap-4">
                           <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500">
@@ -256,7 +331,7 @@ export default function TenantDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {MOCK_TENANT_INVOICES.map((inv) => (
+                        {invoices.map((inv) => (
                           <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4 font-mono text-slate-500">{inv.id}</td>
                             <td className="px-6 py-4 font-medium text-slate-900">{inv.period}</td>
@@ -334,19 +409,42 @@ export default function TenantDashboardPage() {
                     </form>
 
                     <h4 className="font-bold text-lg text-slate-900 mt-8 mb-4 pt-4 border-t border-slate-100">Change Password</h4>
-                    <form className="space-y-4">
+                    <form className="space-y-4" onSubmit={handleChangePassword}>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
-                            <input type="password" className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                            <input 
+                                type="password" 
+                                className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                                value={passwordData.current}
+                                onChange={e => setPasswordData({...passwordData, current: e.target.value})}
+                                required
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
-                            <input type="password" className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                            <input 
+                                type="password" 
+                                className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                                value={passwordData.new}
+                                onChange={e => setPasswordData({...passwordData, new: e.target.value})}
+                                required
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
-                            <input type="password" className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" />
+                            <input 
+                                type="password" 
+                                className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                                value={passwordData.confirm}
+                                onChange={e => setPasswordData({...passwordData, confirm: e.target.value})}
+                                required
+                            />
                         </div>
+                        {passwordMsg.text && (
+                            <p className={`text-sm ${passwordMsg.type === 'error' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {passwordMsg.text}
+                            </p>
+                        )}
                         <Button type="submit" className="mt-4" variant="outline">Change Password</Button>
                     </form>
 
@@ -448,15 +546,15 @@ const PaymentModal = ({ onClose, user, onSuccess }: { onClose: () => void, user:
                     <div className="space-y-3 text-sm text-blue-900 relative z-10">
                         <div className="flex justify-between items-center pb-2 border-b border-blue-100/50">
                             <span className="text-blue-600 font-medium">Bank Name</span>
-                            <span className="font-bold">BDO Unibank</span>
+                            <span className="font-bold">BDO Unibank Inc.</span>
                         </div>
                         <div className="flex justify-between items-center pb-2 border-b border-blue-100/50">
                             <span className="text-blue-600 font-medium">Account Name</span>
-                            <span className="font-bold">Nicarjon Apartments</span>
+                            <span className="font-bold">Carmelita Cabahug or Melonil Cabahug</span>
                         </div>
                         <div className="flex justify-between items-center pt-1">
                             <span className="text-blue-600 font-medium">Account Number</span>
-                            <span className="font-mono font-bold text-xl tracking-wide">0012-3456-7890</span>
+                            <span className="font-mono font-bold text-xl tracking-wide">0034 4005 9736</span>
                         </div>
                     </div>
                 </div>

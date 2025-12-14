@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Unit, Tenant } from "@/data/mock";
-import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
@@ -12,6 +12,7 @@ export default function RoomsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Unit, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
   
   // Modals
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
@@ -63,10 +64,44 @@ export default function RoomsPage() {
     fetchData();
   }, []);
 
-  const filteredUnits = units.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.building.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUnits = units.filter(u => {
+    const lowerSearch = searchTerm.toLowerCase();
+    const matchesRoom = u.name.toLowerCase().includes(lowerSearch) ||
+                        u.building.toLowerCase().includes(lowerSearch);
+    
+    if (matchesRoom) return true;
+
+    const occupant = tenants.find(t => t.unitId === u.id && t.status === 'Active');
+    return occupant ? occupant.name.toLowerCase().includes(lowerSearch) : false;
+  });
+
+  const sortedUnits = [...filteredUnits].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+  });
+
+  const requestSort = (key: keyof Unit) => {
+      let direction: 'asc' | 'desc' = 'asc';
+      if (sortConfig.key === key && sortConfig.direction === 'asc') {
+          direction = 'desc';
+      }
+      setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ column }: { column: keyof Unit }) => {
+      if (sortConfig.key !== column) return <ArrowUpDown className="w-3 h-3 ml-1 text-slate-400" />;
+      return sortConfig.direction === 'asc' 
+          ? <ArrowUp className="w-3 h-3 ml-1 text-blue-600" /> 
+          : <ArrowDown className="w-3 h-3 ml-1 text-blue-600" />;
+  };
 
   const handleAddRoom = async (newRoomData: any, newTenantData: any) => {
     try {
@@ -190,10 +225,25 @@ export default function RoomsPage() {
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 font-semibold">Unit Name</th>
-                <th className="px-6 py-3 font-semibold">Building</th>
+                <th 
+                    className="px-6 py-3 font-semibold cursor-pointer hover:bg-slate-100 transition-colors"
+                    onClick={() => requestSort('name')}
+                >
+                    <div className="flex items-center">Unit Name <SortIcon column="name" /></div>
+                </th>
+                <th 
+                    className="px-6 py-3 font-semibold cursor-pointer hover:bg-slate-100 transition-colors"
+                    onClick={() => requestSort('building')}
+                >
+                    <div className="flex items-center">Building <SortIcon column="building" /></div>
+                </th>
                 <th className="px-6 py-3 font-semibold">Type</th>
-                <th className="px-6 py-3 font-semibold">Rent</th>
+                <th 
+                    className="px-6 py-3 font-semibold cursor-pointer hover:bg-slate-100 transition-colors"
+                    onClick={() => requestSort('rent')}
+                >
+                    <div className="flex items-center">Rent <SortIcon column="rent" /></div>
+                </th>
                 <th className="px-6 py-3 font-semibold">Security Deposit</th>
                 <th className="px-6 py-3 font-semibold">Occupant</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
@@ -201,7 +251,7 @@ export default function RoomsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUnits.map((unit) => {
+              {sortedUnits.map((unit) => {
                 const currentTenant = tenants.find(t => t.unitId === unit.id && t.status === 'Active');
                 return (
                   <tr key={unit.id} className="hover:bg-slate-50/50 transition-colors">
