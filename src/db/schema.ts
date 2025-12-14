@@ -24,6 +24,7 @@ export const tenants = pgTable("tenants", {
   leaseEnd: date("lease_end").notNull(),
   status: text("status").notNull(), // 'Active', 'Archived'
   avatarUrl: text("avatar_url"),
+  contractUrl: text("contract_url"),
   
   // Foreign Key
   roomId: uuid("room_id").references(() => rooms.id),

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { rooms, buildings } from '@/db/schema';
-import { eq, like } from 'drizzle-orm';
+import { eq, like, and } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
 
 export async function GET(request: Request) {
@@ -53,6 +53,18 @@ export async function POST(request: Request) {
         name: buildingName
       }).returning();
       building = newBuilding;
+    }
+
+    // Check for duplicate room name in the same building
+    const existingRoom = await db.query.rooms.findFirst({
+      where: and(
+        eq(rooms.name, name),
+        eq(rooms.buildingId, building.id)
+      )
+    });
+
+    if (existingRoom) {
+      return NextResponse.json({ error: `Room ${name} already exists in ${buildingName}` }, { status: 409 });
     }
 
     const [newRoom] = await db.insert(rooms).values({

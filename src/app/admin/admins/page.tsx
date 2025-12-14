@@ -24,7 +24,8 @@ export default function AdminsPage() {
                     email: a.email,
                     role: a.role,
                     status: a.status,
-                    joined: new Date(a.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    joined: new Date(a.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    avatarUrl: a.avatarUrl
                 }));
                 setAdmins(mappedAdmins);
             }
@@ -107,8 +108,12 @@ export default function AdminsPage() {
                 <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">
-                          {admin.name.charAt(0)}
+                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs overflow-hidden">
+                          {admin.avatarUrl ? (
+                              <img src={admin.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                              admin.name.charAt(0)
+                          )}
                         </div>
                         <div>
                           <div className="font-medium text-slate-900">{admin.name}</div>

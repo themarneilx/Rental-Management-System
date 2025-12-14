@@ -25,6 +25,25 @@ export async function verifyAdmin() {
   }
 }
 
+export async function verifyTenant() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token')?.value;
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, SECRET);
+    if (payload.role === 'tenant') {
+        return payload;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
 export function unauthorized() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }

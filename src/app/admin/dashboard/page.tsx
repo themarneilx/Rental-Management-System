@@ -9,10 +9,12 @@ import {
   FileText, 
   Plus, 
   Zap, 
-  Bell 
+  Bell,
+  X 
 } from "lucide-react";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
+import ModalPortal from "@/components/ui/ModalPortal";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -34,6 +36,11 @@ export default function DashboardPage() {
   });
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // View All Modal State
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [allActivity, setAllActivity] = useState<any[]>([]);
+  const [loadingAllActivity, setLoadingAllActivity] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -67,6 +74,24 @@ export default function DashboardPage() {
     { label: "Outstanding Balance", value: `₱${statsData.outstandingBalance.toLocaleString()}`, icon: AlertCircle, colorClass: "bg-rose-50 text-rose-600" },
   ];
 
+  const handleViewAllActivity = async () => {
+      setIsActivityModalOpen(true);
+      if (allActivity.length > 0) return;
+
+      setLoadingAllActivity(true);
+      try {
+          const res = await fetch('/api/dashboard/activity?limit=all');
+          if (res.ok) {
+              const data = await res.json();
+              setAllActivity(data);
+          }
+      } catch (error) {
+          console.error("Failed to fetch all activity", error);
+      } finally {
+          setLoadingAllActivity(false);
+      }
+  };
+
   if (loading) {
       return <div className="p-6">Loading dashboard stats...</div>;
   }
@@ -92,7 +117,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
+            <button onClick={handleViewAllActivity} className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
           </div>
           <div className="space-y-6">
             {activity.length === 0 ? (
@@ -142,6 +167,66 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {isActivityModalOpen && (
+          <ActivityHistoryModal
+             onClose={() => setIsActivityModalOpen(false)}
+             activities={allActivity}
+             loading={loadingAllActivity}
+          />
+      )}
     </div>
   );
+}
+
+function ActivityHistoryModal({ onClose, activities, loading }: { onClose: () => void, activities: any[], loading: boolean }) {
+    return (
+        <ModalPortal>
+            <div className="modal modal-open z-[60]">
+                <div className="modal-box w-full max-w-2xl bg-white rounded-xl shadow-xl p-0 h-[80vh] flex flex-col">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+                        <h3 className="text-xl font-bold text-slate-900">Activity History</h3>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-6">
+                        {loading ? (
+                            <div className="flex justify-center py-8">Loading activities...</div>
+                        ) : activities.length === 0 ? (
+                            <p className="text-center text-slate-500 py-8">No activity history found.</p>
+                        ) : (
+                            <div className="space-y-6">
+                                {activities.map((item, i) => {
+                                    const IconComponent = ICON_MAP[item.icon] || AlertCircle;
+                                    return (
+                                        <div key={i} className="flex items-start gap-4">
+                                            <div className={`p-2 rounded-full ${item.color} shrink-0`}>
+                                                <IconComponent className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-semibold text-slate-900">{item.title}</h4>
+                                                <p className="text-xs text-slate-500 truncate">{item.desc}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-400 whitespace-nowrap">
+                                                {new Date(item.time).toLocaleDateString()} {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 shrink-0 flex justify-end">
+                        <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium">
+                            Close
+                        </button>
+                    </div>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button onClick={onClose}>close</button>
+                </form>
+            </div>
+        </ModalPortal>
+    );
 }

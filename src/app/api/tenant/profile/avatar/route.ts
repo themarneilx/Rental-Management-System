@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { admins } from '@/db/schema';
+import { tenants } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { verifyAdmin, unauthorized } from '@/lib/auth';
+import { verifyTenant, unauthorized } from '@/lib/auth';
 import { uploadToImgBB } from '@/lib/imgbb';
 
 export async function POST(request: Request) {
-  const adminPayload = await verifyAdmin();
-  if (!adminPayload) return unauthorized();
+  const tenantPayload = await verifyTenant();
+  if (!tenantPayload) return unauthorized();
 
   try {
     const formData = await request.formData();
@@ -25,9 +25,9 @@ export async function POST(request: Request) {
     // Upload to ImgBB
     const avatarUrl = await uploadToImgBB(file);
 
-    await db.update(admins)
+    await db.update(tenants)
       .set({ avatarUrl: avatarUrl })
-      .where(eq(admins.id, adminPayload.sub as string));
+      .where(eq(tenants.id, tenantPayload.sub as string));
 
     return NextResponse.json({ message: 'Avatar updated', avatarUrl });
   } catch (error: any) {

@@ -10,7 +10,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; avatarUrl?: string | null } | null>(null);
   const [initials, setInitials] = useState<string>('AU'); // Default to Admin User
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function AdminLayout({
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} user={user} />
       
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} initials={initials} />
+        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} initials={initials} user={user} />
         
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
             <div className="max-w-7xl mx-auto">

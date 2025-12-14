@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Tenant, Unit } from "@/data/mock";
-import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle } from "lucide-react";
+import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
+import ContractModal from "@/components/ContractModal";
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -52,7 +53,9 @@ export default function TenantsPage() {
             } : null,
             status: t.status,
             leaseEnd: t.leaseEnd?.split('T')[0] || '',
-            deposit: Number(t.deposit)
+            deposit: Number(t.deposit),
+            avatarUrl: t.avatarUrl,
+            contractUrl: t.contractUrl
           }));
 
           const mappedUnits: Unit[] = roomsData.map((r: any) => ({
@@ -82,15 +85,16 @@ export default function TenantsPage() {
     t.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddTenant = async (newTenantData: any) => {
+  const handleAddTenant = async (formData: FormData) => {
     try {
+      // Ensure unitId maps to roomId if needed by backend
+      if (formData.get('unitId')) {
+          formData.append('roomId', formData.get('unitId') as string);
+      }
+
       const res = await fetch('/api/tenants', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newTenantData,
-          roomId: newTenantData.unitId
-        })
+        body: formData
       });
 
       if (res.ok) {
@@ -103,7 +107,9 @@ export default function TenantsPage() {
           unitId: createdTenant.roomId,
           status: createdTenant.status,
           leaseEnd: createdTenant.leaseEnd.split('T')[0],
-          deposit: Number(createdTenant.deposit)
+          deposit: Number(createdTenant.deposit),
+          avatarUrl: createdTenant.avatarUrl,
+          contractUrl: createdTenant.contractUrl
         };
         
         setTenants([newTenant, ...tenants]);
@@ -112,7 +118,8 @@ export default function TenantsPage() {
         }
         setIsAddTenantModalOpen(false);
       } else {
-        alert('Failed to add tenant');
+        const err = await res.json();
+        alert(err.error || 'Failed to add tenant');
       }
     } catch (error) {
       console.error('Error adding tenant:', error);
@@ -120,11 +127,58 @@ export default function TenantsPage() {
     }
   };
 
-  const handleUpdateTenant = (updatedTenant: Tenant) => {
-    // TODO: Implement API PUT for updating tenant
-    setTenants(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
-    setIsEditTenantModalOpen(false);
-    setSelectedTenant(null);
+  const handleUpdateTenant = async (formData: FormData) => {
+    try {
+        const id = formData.get('id') as string;
+        const res = await fetch(`/api/tenants/${id}`, {
+            method: 'PUT',
+            body: formData
+        });
+
+        if (res.ok) {
+            const updatedTenantData = await res.json();
+            const mappedTenant: Tenant = {
+                id: updatedTenantData.id,
+                name: updatedTenantData.name,
+                email: updatedTenantData.email || '',
+                phone: updatedTenantData.phone,
+                unitId: updatedTenantData.roomId,
+                previousRoomId: selectedTenant?.previousRoomId, // Preserve or update if needed
+                previousRoom: selectedTenant?.previousRoom,
+                status: updatedTenantData.status,
+                leaseEnd: updatedTenantData.leaseEnd.split('T')[0],
+                deposit: Number(updatedTenantData.deposit),
+                avatarUrl: updatedTenantData.avatarUrl,
+                contractUrl: updatedTenantData.contractUrl
+            };
+
+            setTenants(prev => prev.map(t => t.id === mappedTenant.id ? mappedTenant : t));
+            
+            // Refresh units to update statuses
+            const roomsRes = await fetch('/api/rooms');
+            if (roomsRes.ok) {
+                const roomsData = await roomsRes.json();
+                const mappedUnits: Unit[] = roomsData.map((r: any) => ({
+                    id: r.id,
+                    name: r.name,
+                    building: r.building?.name || 'Unknown',
+                    type: r.type,
+                    rent: Number(r.rent),
+                    status: r.status
+                }));
+                setUnits(mappedUnits);
+            }
+
+            setIsEditTenantModalOpen(false);
+            setSelectedTenant(null);
+        } else {
+            const err = await res.json();
+            alert(err.error || "Failed to update tenant");
+        }
+    } catch (error) {
+        console.error("Error updating tenant:", error);
+        alert("Error updating tenant");
+    }
   };
 
   const handleArchiveClick = (tenant: Tenant) => {
@@ -221,8 +275,12 @@ export default function TenantsPage() {
                   <tr key={tenant.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                          {tenant.name.substring(0, 2).toUpperCase()}
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs overflow-hidden">
+                          {tenant.avatarUrl ? (
+                             <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                             tenant.name.substring(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div className="font-medium text-slate-900">{tenant.name}</div>
@@ -321,7 +379,7 @@ export default function TenantsPage() {
   );
 }
 
-function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, units: any[], onSubmit: (t: any) => void }) {
+function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, units: any[], onSubmit: (data: FormData) => Promise<void> }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -331,6 +389,10 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
     deposit: 0,
     password: ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const generatePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -341,20 +403,69 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
     setFormData(prev => ({ ...prev, password: pass }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        setAvatarFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleContractChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        setContractFile(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    setLoading(true);
+    
+    const data = new FormData();
+    data.append('name', formData.name);
+    data.append('email', formData.email);
+    data.append('phone', formData.phone);
+    data.append('unitId', formData.unitId);
+    data.append('leaseEnd', formData.leaseEnd);
+    data.append('deposit', formData.deposit.toString());
+    data.append('password', formData.password);
+    if (avatarFile) {
+        data.append('avatar', avatarFile);
+    }
+    if (contractFile) {
+        data.append('contract', contractFile);
+    }
+
+    await onSubmit(data);
+    setLoading(false);
   };
 
   return (
     <ModalPortal>
     <div className="modal modal-open z-[60]">
-      <div className="modal-box w-full max-w-lg bg-white rounded-xl shadow-xl p-0">
+      <div className="modal-box w-full max-w-lg bg-white rounded-xl shadow-xl p-0 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h3 className="text-xl font-bold text-slate-900">New Tenant</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="flex justify-center mb-4">
+              <div className="relative group">
+                  <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+                      {previewUrl ? (
+                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                          <span className="text-2xl font-bold text-slate-400">?</span>
+                      )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
+                      <Camera className="w-4 h-4" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                  </label>
+              </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
             <input required type="text" className="w-full p-2 border border-slate-200 rounded-lg" 
@@ -404,9 +515,18 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
                   value={formData.deposit} onChange={e => setFormData({...formData, deposit: Number(e.target.value)})} />
              </div>
           </div>
+
+          <div className="pt-2 border-t border-slate-100">
+             <label className="block text-sm font-medium text-slate-700 mb-1">Attach Contract (Image)</label>
+             <input type="file" accept="image/*" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleContractChange} />
+             {contractFile && <p className="text-xs text-emerald-600 mt-1">Selected: {contractFile.name}</p>}
+          </div>
+
           <div className="pt-4 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-            <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Add Tenant</button>
+            <button type="submit" disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+               {loading ? 'Adding...' : 'Add Tenant'}
+            </button>
           </div>
         </form>
       </div>
@@ -419,6 +539,8 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
 }
 
 function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenant: Tenant, unit: Unit | null }) {
+    const [isContractOpen, setIsContractOpen] = useState(false);
+
     return (
     <ModalPortal>
         <div className="modal modal-open z-[60]">
@@ -430,7 +552,11 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
                 <div className="p-6 space-y-6">
                     <div className="flex items-start gap-3 p-3 border border-slate-100 rounded-lg">
                         <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold">
-                            {tenant.name.charAt(0)}
+                            {tenant.avatarUrl ? (
+                                <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                                tenant.name.charAt(0)
+                            )}
                         </div>
                         <div>
                             <p className="font-bold text-slate-900">{tenant.name}</p>
@@ -464,11 +590,34 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
                              <p className="text-sm text-slate-500 italic">No unit currently assigned.</p>
                          )}
                     </div>
+                    
+                    {tenant.contractUrl && (
+                        <div className="space-y-3 pt-2">
+                             <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Contract</h4>
+                             <div 
+                               className="relative group w-full h-32 bg-slate-100 rounded-lg overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-500 transition-all"
+                               onClick={() => setIsContractOpen(true)}
+                             >
+                                 <img src={tenant.contractUrl} alt="Contract" className="w-full h-full object-cover" />
+                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                     <div className="bg-white/90 p-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity transform scale-90 group-hover:scale-100">
+                                        <Eye className="w-5 h-5 text-blue-600" />
+                                     </div>
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+
                     <div className="pt-2">
                         <button onClick={onClose} className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors">Close</button>
                     </div>
                 </div>
             </div>
+            
+            {isContractOpen && tenant.contractUrl && (
+                <ContractModal url={tenant.contractUrl} onClose={() => setIsContractOpen(false)} />
+            )}
+
             <form method="dialog" className="modal-backdrop">
                 <button onClick={onClose}>close</button>
             </form>
@@ -477,12 +626,47 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
     );
 }
 
-function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => void, tenant: Tenant, units: Unit[], onSubmit: (t: Tenant) => void }) {
+function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => void, tenant: Tenant, units: Unit[], onSubmit: (data: FormData) => Promise<void> }) {
     const [formData, setFormData] = useState({ ...tenant });
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [contractFile, setContractFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(tenant.avatarUrl || null);
+    const [saving, setSaving] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setAvatarFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
+    const handleContractChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setContractFile(file);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData);
+        setSaving(true);
+        const data = new FormData();
+        data.append('id', formData.id);
+        data.append('name', formData.name);
+        data.append('email', formData.email);
+        data.append('phone', formData.phone);
+        data.append('unitId', formData.unitId || '');
+        data.append('leaseEnd', formData.leaseEnd);
+        data.append('deposit', formData.deposit.toString());
+        if (avatarFile) {
+            data.append('avatar', avatarFile);
+        }
+        if (contractFile) {
+            data.append('contract', contractFile);
+        }
+        await onSubmit(data);
+        setSaving(false);
     };
 
     return (
@@ -493,47 +677,74 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                     <h3 className="text-xl font-bold text-slate-900">Edit Tenant Details</h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                        <input required type="text" className="w-full p-2 border border-slate-200 rounded-lg" 
-                            value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    <div className="flex justify-center">
+                        <div className="relative group">
+                            <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+                                {previewUrl ? (
+                                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl font-bold text-slate-400">{formData.name.charAt(0)}</span>
+                                )}
+                            </div>
+                            <label className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
+                                <Camera className="w-4 h-4" />
+                                <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                            </label>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                          <input required type="email" className="w-full p-2 border border-slate-200 rounded-lg" 
-                            value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                       </div>
-                       <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-                          <input required type="text" className="w-full p-2 border border-slate-200 rounded-lg" 
-                            value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                       </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                            <input required type="text" className="w-full p-2 border border-slate-200 rounded-lg" 
+                                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                            <input required type="email" className="w-full p-2 border border-slate-200 rounded-lg" 
+                                value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                            <input required type="text" className="w-full p-2 border border-slate-200 rounded-lg" 
+                                value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                        </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Assign Unit</label>
+                            <select className="w-full p-2 border border-slate-200 rounded-lg"
+                            value={formData.unitId || ''} onChange={e => setFormData({...formData, unitId: e.target.value || null})}>
+                            <option value="">-- No Unit --</option>
+                            {units.filter(u => u.status === 'Vacant' || u.id === formData.unitId).map(u => <option key={u.id} value={u.id}>{u.name} - {u.type} (₱{u.rent})</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Lease End Date</label>
+                            <input required type="date" className="w-full p-2 border border-slate-200 rounded-lg" 
+                                value={formData.leaseEnd} onChange={e => setFormData({...formData, leaseEnd: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Security Deposit</label>
+                            <input required type="number" className="w-full p-2 border border-slate-200 rounded-lg" 
+                                value={formData.deposit} onChange={e => setFormData({...formData, deposit: Number(e.target.value)})} />
+                        </div>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Assign Unit</label>
-                        <select className="w-full p-2 border border-slate-200 rounded-lg"
-                           value={formData.unitId || ''} onChange={e => setFormData({...formData, unitId: e.target.value || null})}>
-                           <option value="">-- No Unit --</option>
-                           {units.filter(u => u.status === 'Vacant' || u.id === formData.unitId).map(u => <option key={u.id} value={u.id}>{u.name} - {u.type} (₱{u.rent})</option>)}
-                        </select>
+
+                    <div className="pt-2 border-t border-slate-100">
+                         <label className="block text-sm font-medium text-slate-700 mb-1">Attach Contract (Image)</label>
+                         <input type="file" accept="image/*" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleContractChange} />
+                         {contractFile && <p className="text-xs text-emerald-600 mt-1">Selected: {contractFile.name}</p>}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Lease End Date</label>
-                          <input required type="date" className="w-full p-2 border border-slate-200 rounded-lg" 
-                            value={formData.leaseEnd} onChange={e => setFormData({...formData, leaseEnd: e.target.value})} />
-                       </div>
-                       <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Security Deposit</label>
-                          <input required type="number" className="w-full p-2 border border-slate-200 rounded-lg" 
-                            value={formData.deposit} onChange={e => setFormData({...formData, deposit: Number(e.target.value)})} />
-                       </div>
-                    </div>
+
                     <div className="pt-4 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Save Changes</button>
+                        <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                            {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -544,6 +755,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
     </ModalPortal>
     );
 }
+
 function ArchiveConfirmationModal({ onClose, onConfirm, tenant }: { onClose: () => void, onConfirm: () => void, tenant: Tenant }) {
     return (
         <ModalPortal>
@@ -573,3 +785,32 @@ function ArchiveConfirmationModal({ onClose, onConfirm, tenant }: { onClose: () 
         </ModalPortal>
     );
 }
+
+// Reuse ContractModal logic (simplified version of the admin one)
+// Note: This component has been moved to src/components/ContractModal.tsx
+// to be shared across the project.
+// The code below is the OLD version and should not be re-added.
+/*
+function ContractModal({ url, onClose }: { url: string, onClose: () => void }) {
+    return (
+        <ModalPortal>
+            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="relative w-full max-w-4xl max-h-[90vh] flex items-center justify-center">
+                    <button 
+                        onClick={onClose} 
+                        className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors"
+                    >
+                        <X className="w-8 h-8" />
+                    </button>
+                    <img 
+                        src={url} 
+                        alt="Contract Full View" 
+                        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
+                    />
+                </div>
+                <div className="absolute inset-0 -z-10" onClick={onClose}></div>
+            </div>
+        </ModalPortal>
+    );
+}
+*/

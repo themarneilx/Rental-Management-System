@@ -6,9 +6,10 @@ interface HeaderProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   initials: string;
+  user: { name: string; email: string; avatarUrl?: string | null } | null;
 }
 
-export default function Header({ sidebarOpen, setSidebarOpen, initials }: HeaderProps) {
+export default function Header({ sidebarOpen, setSidebarOpen, initials, user }: HeaderProps) {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -34,8 +35,12 @@ export default function Header({ sidebarOpen, setSidebarOpen, initials }: Header
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
         </button>
-        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-sm ring-2 ring-blue-100">
-          {initials}
+        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-sm ring-2 ring-blue-100 overflow-hidden">
+          {user?.avatarUrl ? (
+             <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+             initials
+          )}
         </div>
       </div>
     </header>

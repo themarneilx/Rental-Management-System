@@ -9,15 +9,19 @@ export async function GET(request: Request) {
   if (!admin) return unauthorized();
 
   try {
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam === 'all' ? 50 : 5;
+
     const recentTenants = await db.query.tenants.findMany({
       orderBy: [desc(tenants.createdAt)],
-      limit: 5,
+      limit: limit,
       with: { room: true }
     });
 
     const recentInvoices = await db.query.invoices.findMany({
       orderBy: [desc(invoices.date)],
-      limit: 5,
+      limit: limit,
       with: { tenant: true, room: true }
     });
     
@@ -46,7 +50,7 @@ export async function GET(request: Request) {
     // Sort by time desc
     activities.sort((a, b) => new Date(b.time as any).getTime() - new Date(a.time as any).getTime());
 
-    return NextResponse.json(activities.slice(0, 5));
+    return NextResponse.json(activities.slice(0, limit));
   } catch (error) {
     console.error('Error fetching activity:', error);
     return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 });

@@ -64,6 +64,8 @@ export async function GET(request: Request) {
       unitName: tenantData.room?.name || 'N/A',
       buildingName: tenantData.room?.building?.name || 'N/A',
       leaseEnd: tenantData.leaseEnd,
+      avatarUrl: tenantData.avatarUrl,
+      contractUrl: tenantData.contractUrl,
       totalDue: totalDue,
       recentInvoices: recentInvoices.map(inv => ({
         id: inv.invoiceNumber, // using invoiceNumber as display ID

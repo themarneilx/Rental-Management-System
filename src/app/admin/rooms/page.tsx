@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Unit, Tenant } from "@/data/mock";
-import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, AlertTriangle } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
@@ -13,12 +13,15 @@ export default function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Unit, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+  const [selectedBuilding, setSelectedBuilding] = useState<string>("All");
   
   // Modals
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
   const [isEditRoomModalOpen, setIsEditRoomModalOpen] = useState(false);
   const [isViewRoomModalOpen, setIsViewRoomModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Unit | null>(null);
+  const [roomToDelete, setRoomToDelete] = useState<Unit | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -64,7 +67,11 @@ export default function RoomsPage() {
     fetchData();
   }, []);
 
+  const uniqueBuildings = Array.from(new Set(units.map(u => u.building))).sort();
+
   const filteredUnits = units.filter(u => {
+    if (selectedBuilding !== "All" && u.building !== selectedBuilding) return false;
+
     const lowerSearch = searchTerm.toLowerCase();
     const matchesRoom = u.name.toLowerCase().includes(lowerSearch) ||
                         u.building.toLowerCase().includes(lowerSearch);
@@ -118,7 +125,10 @@ export default function RoomsPage() {
             })
         });
 
-        if (!roomRes.ok) throw new Error('Failed to create room');
+        if (!roomRes.ok) {
+            const errorData = await roomRes.json();
+            throw new Error(errorData.error || 'Failed to create room');
+        }
         const createdRoom = await roomRes.json();
 
         // 2. Create Tenant if provided
@@ -165,9 +175,9 @@ export default function RoomsPage() {
 
         setIsAddRoomModalOpen(false);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error adding room:', error);
-        alert('Failed to add room');
+        throw error;
     }
   };
 
@@ -191,6 +201,30 @@ export default function RoomsPage() {
       setIsViewRoomModalOpen(true);
   };
 
+  const handleDeleteRoom = (room: Unit) => {
+      setRoomToDelete(room);
+      setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteRoom = async () => {
+      if (!roomToDelete) return;
+
+      try {
+          const res = await fetch(`/api/rooms/${roomToDelete.id}`, { method: 'DELETE' });
+          if (res.ok) {
+              setUnits(prev => prev.filter(u => u.id !== roomToDelete.id));
+              setIsDeleteModalOpen(false);
+              setRoomToDelete(null);
+          } else {
+              const data = await res.json();
+              alert(data.error || 'Failed to delete room');
+          }
+      } catch (error) {
+          console.error('Error deleting room:', error);
+          alert('Error deleting room');
+      }
+  };
+
   if (loading) return <div className="p-6">Loading rooms...</div>;
 
   return (
@@ -209,7 +243,7 @@ export default function RoomsPage() {
         </div>
 
         <Card className="overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex gap-4">
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
@@ -219,6 +253,19 @@ export default function RoomsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+          </div>
+          <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 whitespace-nowrap">Filter by Building:</span>
+              <select 
+                  className="p-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  value={selectedBuilding}
+                  onChange={(e) => setSelectedBuilding(e.target.value)}
+              >
+                  <option value="All">All Buildings</option>
+                  {uniqueBuildings.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                  ))}
+              </select>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -246,7 +293,12 @@ export default function RoomsPage() {
                 </th>
                 <th className="px-6 py-3 font-semibold">Security Deposit</th>
                 <th className="px-6 py-3 font-semibold">Occupant</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
+                <th 
+                    className="px-6 py-3 font-semibold cursor-pointer hover:bg-slate-100 transition-colors"
+                    onClick={() => requestSort('status')}
+                >
+                    <div className="flex items-center">Status <SortIcon column="status" /></div>
+                </th>
                 <th className="px-6 py-3 font-semibold text-right">Action</th>
               </tr>
             </thead>
@@ -287,6 +339,9 @@ export default function RoomsPage() {
                           <button onClick={() => openEditRoom(unit)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit Room">
                             <Pencil className="w-4 h-4" />
                           </button>
+                          <button onClick={() => handleDeleteRoom(unit)} className="text-slate-400 hover:text-rose-600 transition-colors" title="Delete Room">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                        </div>
                     </td>
                   </tr>
@@ -323,6 +378,14 @@ export default function RoomsPage() {
              tenant={tenants.find(t => t.unitId === selectedRoom.id) || null}
           />
       )}
+
+      {isDeleteModalOpen && roomToDelete && (
+          <DeleteConfirmationModal
+             onClose={() => setIsDeleteModalOpen(false)}
+             onConfirm={confirmDeleteRoom}
+             room={roomToDelete}
+          />
+      )}
     </div>
   );
 }
@@ -337,7 +400,7 @@ const ROOM_TYPES = [
   "3BHK"
 ];
 
-function AddRoomModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (room: any, tenant: any) => void }) {
+function AddRoomModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (room: any, tenant: any) => Promise<void> }) {
     const [formData, setFormData] = useState({
         name: '',
         building: 'Building 1',
@@ -353,10 +416,12 @@ function AddRoomModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (r
         leaseEnd: '',
         deposit: 0
     });
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+        setErrorMessage(null); // Clear previous errors
+
         const newRoom = {
             id: `U-${Math.floor(Math.random() * 10000)}`,
             ...formData,
@@ -367,7 +432,11 @@ function AddRoomModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (r
             ...tenantData
         } : null;
 
-        onSubmit(newRoom, newTenant);
+        try {
+            await onSubmit(newRoom, newTenant);
+        } catch (error: any) {
+            setErrorMessage(error.message || 'An unexpected error occurred.');
+        }
     };
 
     return (
@@ -469,6 +538,13 @@ function AddRoomModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (r
                             </div>
                         )}
                     </div>
+
+                    {errorMessage && (
+                        <div className="text-sm text-rose-600 bg-rose-50 p-3 rounded-lg flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            {errorMessage}
+                        </div>
+                    )}
 
                     <div className="pt-2 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
@@ -656,5 +732,35 @@ function ViewRoomModal({ onClose, room, tenant }: { onClose: () => void, room: U
             </form>
         </div>
     </ModalPortal>
+    );
+}
+
+function DeleteConfirmationModal({ onClose, onConfirm, room }: { onClose: () => void, onConfirm: () => void, room: Unit }) {
+    return (
+        <ModalPortal>
+            <div className="modal modal-open z-[70]">
+                <div className="modal-box w-full max-w-sm bg-white rounded-xl shadow-2xl p-0 overflow-hidden">
+                    <div className="p-6 text-center">
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 mb-4">
+                            <AlertTriangle className="h-6 w-6 text-rose-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Room?</h3>
+                        <p className="text-sm text-slate-500">
+                            Are you sure you want to delete <span className="font-bold text-slate-700">{room.name}</span> in <span className="font-bold text-slate-700">{room.building}</span>?
+                        </p>
+                        <p className="text-xs text-rose-500 mt-2 font-medium">
+                            This action cannot be undone.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 px-4 py-3 flex justify-center gap-3 border-t border-slate-100">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+                        <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-sm">Delete Room</button>
+                    </div>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button onClick={onClose}>close</button>
+                </form>
+            </div>
+        </ModalPortal>
     );
 }

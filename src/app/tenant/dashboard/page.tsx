@@ -19,12 +19,15 @@ import {
   Upload, 
   Image as ImageIcon,
   Clock,
-  AlertTriangle // Added AlertTriangle for confirmation modal
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import { MOCK_TENANT_USER, MOCK_TENANT_INVOICES, TenantUser } from '@/data/mock';
 import Badge from '@/components/ui/StatusBadge';
-import Button from '@/components/ui/Button'; // Re-using the Button component
+import Button from '@/components/ui/Button'; 
 import ModalPortal from '@/components/ui/ModalPortal';
+import ContractModal from "@/components/ContractModal"; // Import shared ContractModal
+
 
 export default function TenantDashboardPage() {
   const router = useRouter();
@@ -34,7 +37,10 @@ export default function TenantDashboardPage() {
   const [totalDue, setTotalDue] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [hasPendingPayment, setHasPendingPayment] = useState(false); // State for pending status
+  const [hasPendingPayment, setHasPendingPayment] = useState(false); 
+  
+  // Contract Modal State
+  const [isContractOpen, setIsContractOpen] = useState(false);
   
   // Password Change State
   const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
@@ -54,11 +60,12 @@ export default function TenantDashboardPage() {
             unitName: data.unitName,
             building: data.buildingName,
             leaseEnd: data.leaseEnd,
+            avatar: data.avatarUrl,
+            contractUrl: data.contractUrl,
           }));
           setInvoices(data.recentInvoices);
           setTotalDue(data.totalDue);
         } else {
-             // Handle 401 or errors
              if (res.status === 401) {
                  router.push('/login');
              }
@@ -80,14 +87,39 @@ export default function TenantDashboardPage() {
     }
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserData({ ...userData, avatar: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const previousAvatar = userData.avatar;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setUserData(prev => ({ ...prev, avatar: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/api/tenant/profile/avatar', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            setUserData(prev => ({ ...prev, avatar: data.avatarUrl }));
+        } else {
+            console.error('Failed to upload avatar');
+            alert('Failed to update avatar.');
+            setUserData(prev => ({ ...prev, avatar: previousAvatar }));
+        }
+    } catch (error) {
+        console.error('Error uploading avatar:', error);
+        alert('Error uploading avatar. Please check your connection.');
+        setUserData(prev => ({ ...prev, avatar: previousAvatar }));
     }
   };
 
@@ -220,7 +252,7 @@ export default function TenantDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Balance Card - UPDATED WITH PAY NOW */}
+                  {/* Balance Card */}
                   <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
                     <div>
                         <div className="flex items-start justify-between mb-6">
@@ -408,6 +440,25 @@ export default function TenantDashboardPage() {
                         <Button type="submit" className="mt-4">Save Changes</Button>
                     </form>
 
+                    {/* Contract Section */}
+                    {userData.contractUrl && (
+                        <div className="mt-8 pt-8 border-t border-slate-100">
+                            <h4 className="font-bold text-lg text-slate-900 mb-4">Lease Contract</h4>
+                            <div 
+                                className="relative group w-full h-40 bg-slate-100 rounded-xl overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-500 transition-all"
+                                onClick={() => setIsContractOpen(true)}
+                            >
+                                <img src={userData.contractUrl} alt="Lease Contract" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                    <div className="bg-white/90 p-3 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 flex items-center gap-2">
+                                        <Eye className="w-5 h-5 text-blue-600" />
+                                        <span className="text-xs font-bold text-slate-700">View Contract</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <h4 className="font-bold text-lg text-slate-900 mt-8 mb-4 pt-4 border-t border-slate-100">Change Password</h4>
                     <form className="space-y-4" onSubmit={handleChangePassword}>
                         <div>
@@ -465,6 +516,11 @@ export default function TenantDashboardPage() {
             onSuccess={handlePaymentSuccess}
         />
       )}
+
+      {/* Contract Modal */}
+      {isContractOpen && userData.contractUrl && (
+          <ContractModal url={userData.contractUrl} onClose={() => setIsContractOpen(false)} />
+      )}
     </div>
   );
 };
@@ -495,15 +551,17 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }: { isO
     );
 };
 
-const PaymentModal = ({ onClose, user, onSuccess }: { onClose: () => void, user: TenantUser, onSuccess: () => void }) => {
+function PaymentModal({ onClose, user, onSuccess }: { onClose: () => void, user: TenantUser, onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email,
     phone: user.phone,
+    amount: '',
     message: '',
     receipt: null as File | null
   });
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -513,15 +571,44 @@ const PaymentModal = ({ onClose, user, onSuccess }: { onClose: () => void, user:
 
   const handleInitialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.amount || !formData.receipt) {
+        alert("Please enter amount and attach receipt.");
+        return;
+    }
     setIsConfirmOpen(true);
   };
 
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     setIsConfirmOpen(false);
-    // In a real app, upload logic would go here
-    alert("Payment proof submitted successfully! Please wait for admin verification.");
-    onSuccess();
-    onClose();
+    setIsSubmitting(true);
+
+    try {
+        const data = new FormData();
+        data.append('amount', formData.amount);
+        data.append('message', formData.message);
+        if (formData.receipt) {
+            data.append('receipt', formData.receipt);
+        }
+
+        const res = await fetch('/api/tenant/payments', {
+            method: 'POST',
+            body: data
+        });
+
+        if (res.ok) {
+            alert("Payment proof submitted successfully! Please wait for admin verification.");
+            onSuccess();
+            onClose();
+        } else {
+            const err = await res.json();
+            alert(err.error || "Failed to submit payment proof.");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("An error occurred. Please try again.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -596,6 +683,18 @@ const PaymentModal = ({ onClose, user, onSuccess }: { onClose: () => void, user:
                             required 
                         />
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Amount Paid</label>
+                        <input 
+                            type="number" 
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono" 
+                            placeholder="0.00"
+                            value={formData.amount} 
+                            onChange={e => setFormData({...formData, amount: e.target.value})} 
+                            required 
+                        />
+                    </div>
                     
                     <div>
                         <label className="block text-xs font-medium text-slate-500 mb-1">Message & Proof</label>
@@ -635,8 +734,8 @@ const PaymentModal = ({ onClose, user, onSuccess }: { onClose: () => void, user:
                     </div>
 
                     <div className="pt-2">
-                        <Button type="submit" className="w-full py-3" icon={ArrowRight}>
-                            Submit Payment Proof
+                        <Button type="submit" disabled={isSubmitting} className="w-full py-3" icon={ArrowRight}>
+                            {isSubmitting ? 'Submitting...' : 'Submit Payment Proof'}
                         </Button>
                     </div>
                 </form>

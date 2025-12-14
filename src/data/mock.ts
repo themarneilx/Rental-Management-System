@@ -12,6 +12,8 @@ export interface Tenant {
   // keeping these for compatibility if needed, but primary structure follows design.jsx
   idPhoto?: string;
   contract?: string;
+  avatarUrl?: string | null;
+  contractUrl?: string | null;
 }
 
 export interface Unit {
@@ -49,6 +51,7 @@ export interface Admin {
   role: string;
   status: string;
   joined: string;
+  avatarUrl?: string | null;
 }
 
 // Tenant Portal Specific Types
@@ -62,6 +65,7 @@ export interface TenantUser {
   building: string;
   leaseEnd: string;
   avatar: string | null;
+  contractUrl?: string | null;
 }
 
 export interface TenantInvoice {
