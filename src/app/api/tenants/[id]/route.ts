@@ -25,7 +25,7 @@ export async function PUT(
     const file = formData.get('avatar') as File | null;
     const contractFile = formData.get('contract') as File | null;
 
-    let avatarUrl;
+    let avatarUrl: string | undefined;
     if (file && file.size > 0) {
         if (!file.type.startsWith('image/')) {
             return NextResponse.json({ error: 'Avatar must be an image' }, { status: 400 });
@@ -33,7 +33,7 @@ export async function PUT(
         avatarUrl = await uploadToImgBB(file);
     }
 
-    let contractUrl;
+    let contractUrl: string | undefined;
     if (contractFile && contractFile.size > 0) {
         if (!contractFile.type.startsWith('image/')) {
             return NextResponse.json({ error: 'Contract must be an image' }, { status: 400 });

@@ -107,6 +107,7 @@ export const invoices = pgTable("invoices", {
   penalty: decimal("penalty", { precision: 10, scale: 2 }).default("0").notNull(),
   prevBalance: decimal("prev_balance", { precision: 10, scale: 2 }).default("0").notNull(),
   credit: decimal("credit", { precision: 10, scale: 2 }).default("0").notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0").notNull(), // Track partial payments
   
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   

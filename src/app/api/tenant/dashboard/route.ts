@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { db } from '@/db';
-import { tenants, invoices } from '@/db/schema';
+import { tenants, invoices, paymentProofs } from '@/db/schema';
 import { eq, desc, ne, and, sql } from 'drizzle-orm';
 
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'default_secret');
@@ -42,12 +42,46 @@ export async function GET(request: Request) {
       limit: 5
     });
 
-    // 3. Calculate Total Due (Sum of all invoices that are NOT 'Paid')
-    // We use a raw SQL query or Drizzle's aggregation helper if available, 
-    // but a simple findMany on unpaid invoices is also safe if volume is low.
-    // Let's use aggregation for efficiency.
+    // 3. Fetch Payment Proofs
+    const payments = await db.query.paymentProofs.findMany({
+        where: eq(paymentProofs.tenantId, userId),
+        orderBy: [desc(paymentProofs.submittedAt)],
+    });
+
+    // 4. Combine into Billing History
+    const history = [
+        ...recentInvoices.map(inv => ({
+            id: inv.id,
+            displayId: inv.invoiceNumber,
+            type: 'INVOICE',
+            date: new Date(inv.date),
+            amount: Number(inv.totalAmount),
+            status: inv.status,
+            description: `Rent & Utilities (${inv.rentPeriod})`,
+            details: {
+                rent: Number(inv.rentAmount),
+                water: Number(inv.waterCost),
+                elec: Number(inv.elecCost),
+                amountPaid: Number(inv.amountPaid || 0)
+            }
+        })),
+        ...payments.map(pay => ({
+            id: pay.id,
+            displayId: 'PAYMENT', // Or a generated ID if available
+            type: 'PAYMENT',
+            date: new Date(pay.submittedAt),
+            amount: Number(pay.amount),
+            status: pay.status, // 'Pending', 'Verified', 'Rejected'
+            description: pay.message || 'Payment Submission',
+            details: null
+        }))
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+
+    // 5. Calculate Total Due (Sum of all invoices that are NOT 'Paid')
     const unpaidInvoices = await db.select({
-        totalAmount: invoices.totalAmount
+        totalAmount: invoices.totalAmount,
+        amountPaid: invoices.amountPaid
     }).from(invoices).where(
         and(
             eq(invoices.tenantId, userId),
@@ -55,7 +89,11 @@ export async function GET(request: Request) {
         )
     );
 
-    const totalDue = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+    const totalDue = unpaidInvoices.reduce((sum, inv) => {
+        const due = Number(inv.totalAmount) - Number(inv.amountPaid || 0);
+        // We sum the net balance. If due is negative (overpaid), it reduces the total due.
+        return sum + due;
+    }, 0);
 
     return NextResponse.json({
       name: tenantData.name,
@@ -71,11 +109,16 @@ export async function GET(request: Request) {
         id: inv.invoiceNumber, // using invoiceNumber as display ID
         period: `${inv.rentPeriod}`, // format as needed
         total: Number(inv.totalAmount),
+        amountPaid: Number(inv.amountPaid || 0), // Include amountPaid
         status: inv.status,
         rent: Number(inv.rentAmount),
         water: Number(inv.waterCost),
         elec: Number(inv.elecCost),
         date: inv.date
+      })),
+      billingHistory: history.map(h => ({
+          ...h,
+          date: h.date.toISOString()
       }))
     });
 

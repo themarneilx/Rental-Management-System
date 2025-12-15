@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'default_secret');
 
 export async function GET(request: Request) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
 
   if (!token) {

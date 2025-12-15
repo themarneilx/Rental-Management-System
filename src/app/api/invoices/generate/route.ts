@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { invoices, tenants, rooms } from '@/db/schema';
+import { invoices, tenants, rooms, settings } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
 
@@ -15,6 +15,8 @@ export async function POST(request: Request) {
       waterCurrent, 
       electricCurrent, 
       penalty = 0,
+      prevBalance = 0,
+      credit = 0,
       rentPeriod, // "2024-02"
       utilityPeriod // "2024-01-15 to 2024-02-15"
     } = body;
@@ -48,22 +50,22 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Current reading cannot be less than previous reading' }, { status: 400 });
     }
 
-    // 4. Calculate Costs
-    const ELECTRIC_RATE = 21.00;
-    const WATER_RATE = 70.00;
+    // 4. Fetch Rates & Calculate Costs
+    let config = await db.query.settings.findFirst();
+    if (!config) {
+        // Initialize default settings if missing to avoid crash
+        const [newConfig] = await db.insert(settings).values({}).returning();
+        config = newConfig;
+    }
+
+    const ELECTRIC_RATE = Number(config.electricityRate);
+    const WATER_RATE = Number(config.waterRate);
 
     const electricCost = electricUsage * ELECTRIC_RATE;
     const waterCost = waterUsage * WATER_RATE;
     const rentAmount = Number(tenant.room.rent);
     
-    // Calculate Previous Balance (Sum of unpaid invoices? Or just carry over from last invoice?)
-    // Simple logic: if last invoice is not 'Paid', add its total to prevBalance? 
-    // Drizzle schema has `prevBalance` field.
-    // For now, let's assume 0 or query unpaid invoices.
-    let prevBalance = 0;
-    // TODO: query unpaid invoices sum
-
-    const totalAmount = rentAmount + electricCost + waterCost + Number(penalty) + prevBalance;
+    const totalAmount = rentAmount + electricCost + waterCost + Number(penalty) + Number(prevBalance) - Number(credit);
 
     // 5. Create Invoice
     const [newInvoice] = await db.insert(invoices).values({
@@ -81,10 +83,13 @@ export async function POST(request: Request) {
         elecCost: electricCost.toString(),
         penalty: penalty.toString(),
         prevBalance: prevBalance.toString(),
-        credit: "0",
+        credit: credit.toString(),
         totalAmount: totalAmount.toString(),
         status: 'Pending',
+        date: new Date().toISOString().split('T')[0],
     }).returning();
+
+    console.log('Invoice inserted:', newInvoice);
 
     return NextResponse.json(newInvoice, { status: 201 });
 

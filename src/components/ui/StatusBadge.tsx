@@ -16,6 +16,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     'Super Admin': 'bg-purple-100 text-purple-700',
     'Property Manager': 'bg-blue-100 text-blue-700',
     'Billing Admin': 'bg-cyan-100 text-cyan-700',
+    Partial: 'bg-yellow-100 text-yellow-700', // Added for partial payments
   };
 
   return (

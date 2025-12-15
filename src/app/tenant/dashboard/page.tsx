@@ -20,20 +20,38 @@ import {
   Image as ImageIcon,
   Clock,
   AlertTriangle,
-  Eye
+  Eye,
+  ArrowUpRight,
+  ArrowDownLeft
 } from 'lucide-react';
-import { MOCK_TENANT_USER, MOCK_TENANT_INVOICES, TenantUser } from '@/data/mock';
+import { MOCK_TENANT_USER, MOCK_TENANT_INVOICES, TenantUser, TenantInvoice } from '@/data/mock';
 import Badge from '@/components/ui/StatusBadge';
 import Button from '@/components/ui/Button'; 
 import ModalPortal from '@/components/ui/ModalPortal';
 import ContractModal from "@/components/ContractModal"; // Import shared ContractModal
 
+interface BillingHistoryItem {
+    id: string;
+    displayId: string;
+    type: 'INVOICE' | 'PAYMENT';
+    date: string;
+    amount: number;
+    status: string;
+    description: string;
+    details?: {
+        rent: number;
+        water: number;
+        elec: number;
+        amountPaid: number;
+    } | null;
+}
 
 export default function TenantDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('home');
   const [userData, setUserData] = useState<TenantUser>(MOCK_TENANT_USER);
   const [invoices, setInvoices] = useState<TenantInvoice[]>([]);
+  const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
   const [totalDue, setTotalDue] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -64,6 +82,7 @@ export default function TenantDashboardPage() {
             contractUrl: data.contractUrl,
           }));
           setInvoices(data.recentInvoices);
+          setBillingHistory(data.billingHistory || []);
           setTotalDue(data.totalDue);
         } else {
              if (res.status === 401) {
@@ -125,6 +144,8 @@ export default function TenantDashboardPage() {
 
   const handlePaymentSuccess = () => {
       setHasPendingPayment(true);
+      // Refresh data to show new pending payment in history
+      // Ideally re-fetch or optimistically update
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -334,11 +355,11 @@ export default function TenantDashboardPage() {
               <div className="space-y-6 animate-slide-in">
                 <div className="flex justify-between items-end">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Billing History</h1>
-                        <p className="text-slate-500">View detailed breakdown of your rent and utilities.</p>
+                        <h1 className="text-2xl font-bold text-slate-900">Activity & Billing</h1>
+                        <p className="text-slate-500">View all your transactions, invoices, and payments.</p>
                     </div>
                     <Button 
-                        disabled={hasPendingPayment}
+                        disabled={hasPendingPayment || totalDue <= 0}
                         onClick={() => !hasPendingPayment && setIsPaymentModalOpen(true)}
                         className="py-2"
                         variant={hasPendingPayment ? 'outline' : 'primary'}
@@ -349,33 +370,53 @@ export default function TenantDashboardPage() {
                 </div>
 
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                        <tr>
-                          <th className="px-6 py-4">Invoice ID</th>
-                          <th className="px-6 py-4">Period</th>
-                          <th className="px-6 py-4 text-right">Rent</th>
-                          <th className="px-6 py-4 text-right">Water</th>
-                          <th className="px-6 py-4 text-right">Electric</th>
-                          <th className="px-6 py-4 text-right">Total</th>
-                          <th className="px-6 py-4 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {invoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-mono text-slate-500">{inv.id}</td>
-                            <td className="px-6 py-4 font-medium text-slate-900">{inv.period}</td>
-                            <td className="px-6 py-4 text-right text-slate-600">₱{inv.rent.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-right text-slate-600">₱{inv.water.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-right text-slate-600">₱{inv.elec.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-right font-bold text-slate-900">₱{inv.total.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-center"><Badge status={inv.status} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                    <h3 className="font-bold text-slate-900">Transaction History</h3>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {billingHistory.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500">No activity yet.</div>
+                    ) : (
+                        billingHistory.map((item) => (
+                            <div key={item.id} className="p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-start gap-4">
+                                    <div className={`p-3 rounded-full border shrink-0 ${
+                                        item.type === 'INVOICE' 
+                                            ? 'bg-orange-50 text-orange-600 border-orange-100' 
+                                            : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                    }`}>
+                                        {item.type === 'INVOICE' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="font-bold text-slate-900">{item.description}</p>
+                                            <Badge status={item.status} />
+                                        </div>
+                                        <p className="text-xs text-slate-500 flex items-center gap-2">
+                                            {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                        {item.type === 'INVOICE' && item.details && (
+                                            <div className="mt-2 text-xs text-slate-500 grid grid-cols-2 gap-x-4 gap-y-1">
+                                                <span>Rent: ₱{item.details.rent.toLocaleString()}</span>
+                                                <span>Paid: ₱{item.details.amountPaid.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {item.type === 'PAYMENT' && (
+                                            <p className="mt-1 text-xs text-slate-400">Ref: {item.id.slice(0, 8)}...</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className={`font-bold text-lg ${
+                                        item.type === 'INVOICE' ? 'text-slate-900' : 'text-emerald-600'
+                                    }`}>
+                                        {item.type === 'INVOICE' ? '-' : '+'} ₱{item.amount.toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-bold">{item.type}</p>
+                                </div>
+                            </div>
+                        ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -693,6 +734,7 @@ function PaymentModal({ onClose, user, onSuccess }: { onClose: () => void, user:
                             value={formData.amount} 
                             onChange={e => setFormData({...formData, amount: e.target.value})} 
                             required 
+                            min="0"
                         />
                     </div>
                     
