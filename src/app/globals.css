@@ -48,3 +48,48 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Print Styles */
+@media print {
+  /* Hide everything by default */
+  body > *:not(.print-invoice-portal) {
+    display: none !important;
+  }
+
+  /* Ensure the body allows full height */
+  body, html {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Style the portal wrapper */
+  .print-invoice-portal {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    z-index: 9999 !important;
+    background: white !important;
+  }
+
+  /* Override Modal Styles */
+  .print-invoice-portal .modal-box {
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  /* Hide backdrop and close buttons */
+  .modal-backdrop, 
+  .no-print {
+    display: none !important;
+  }
+}

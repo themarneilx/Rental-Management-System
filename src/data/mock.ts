@@ -70,7 +70,8 @@ export interface TenantUser {
 
 export interface TenantInvoice {
   id: string;
-  period: string;
+  rentPeriod: string;
+  utilityPeriod: string;
   rent: number;
   water: number;
   elec: number;
@@ -175,6 +176,6 @@ export const MOCK_TENANT_USER: TenantUser = {
 };
 
 export const MOCK_TENANT_INVOICES: TenantInvoice[] = [
-  { id: 'INV-001', period: 'Jan 2025', rent: 18000, water: 455, elec: 1201.2, total: 19656.2, status: 'Paid', date: '2025-01-05' },
-  { id: 'INV-004', period: 'Feb 2025', rent: 18000, water: 0, elec: 0, total: 18000, status: 'Pending', date: '2025-02-01' },
+  { id: 'INV-001', rentPeriod: '2025-01-01 to 2025-01-31', utilityPeriod: '2024-12-01 to 2024-12-31', rent: 18000, water: 455, elec: 1201.2, total: 19656.2, status: 'Paid', date: '2025-01-05' },
+  { id: 'INV-004', rentPeriod: '2025-02-01 to 2025-02-28', utilityPeriod: '2025-01-01 to 2025-01-31', rent: 18000, water: 0, elec: 0, total: 18000, status: 'Pending', date: '2025-02-01' },
 ];

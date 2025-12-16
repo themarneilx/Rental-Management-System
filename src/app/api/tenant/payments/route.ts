@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       receiptUrl: receiptUrl,
       message: message,
       status: 'Pending',
+      submittedAt: new Date(),
     });
 
     return NextResponse.json({ success: true });

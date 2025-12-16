@@ -14,7 +14,8 @@ export default function Header({ sidebarOpen, setSidebarOpen, initials, user }: 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
-    day: 'numeric' 
+    day: 'numeric',
+    timeZone: 'Asia/Manila' 
   });
 
   return (

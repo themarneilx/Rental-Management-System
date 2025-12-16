@@ -57,8 +57,10 @@ export async function GET(request: Request) {
             date: new Date(inv.date),
             amount: Number(inv.totalAmount),
             status: inv.status,
-            description: `Rent & Utilities (${inv.rentPeriod})`,
+            description: `Rent & Utilities`,
             details: {
+                rentPeriod: inv.rentPeriod,
+                utilityPeriod: inv.utilityPeriod,
                 rent: Number(inv.rentAmount),
                 water: Number(inv.waterCost),
                 elec: Number(inv.elecCost),
@@ -95,6 +97,15 @@ export async function GET(request: Request) {
         return sum + due;
     }, 0);
 
+    // Check for pending payments
+    const pendingPayment = await db.query.paymentProofs.findFirst({
+        where: and(
+            eq(paymentProofs.tenantId, userId),
+            eq(paymentProofs.status, 'Pending')
+        )
+    });
+    const hasPendingPayment = !!pendingPayment;
+
     return NextResponse.json({
       name: tenantData.name,
       email: tenantData.email,
@@ -105,9 +116,11 @@ export async function GET(request: Request) {
       avatarUrl: tenantData.avatarUrl,
       contractUrl: tenantData.contractUrl,
       totalDue: totalDue,
+      hasPendingPayment: hasPendingPayment,
       recentInvoices: recentInvoices.map(inv => ({
         id: inv.invoiceNumber, // using invoiceNumber as display ID
-        period: `${inv.rentPeriod}`, // format as needed
+        rentPeriod: inv.rentPeriod,
+        utilityPeriod: inv.utilityPeriod,
         total: Number(inv.totalAmount),
         amountPaid: Number(inv.amountPaid || 0), // Include amountPaid
         status: inv.status,

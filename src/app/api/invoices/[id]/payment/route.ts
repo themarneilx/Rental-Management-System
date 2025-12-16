@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { invoices } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { invoices, paymentProofs } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
 
 export async function POST(
@@ -46,6 +46,14 @@ export async function POST(
             status: newStatus
         })
         .where(eq(invoices.id, invoice.id));
+
+    // Auto-verify pending payment proofs for this tenant
+    await db.update(paymentProofs)
+        .set({ status: 'Verified' })
+        .where(and(
+            eq(paymentProofs.tenantId, invoice.tenantId),
+            eq(paymentProofs.status, 'Pending')
+        ));
 
     return NextResponse.json({ 
         success: true, 

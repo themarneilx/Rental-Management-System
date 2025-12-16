@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         credit: credit.toString(),
         totalAmount: totalAmount.toString(),
         status: 'Pending',
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(),
     }).returning();
 
     console.log('Invoice inserted:', newInvoice);

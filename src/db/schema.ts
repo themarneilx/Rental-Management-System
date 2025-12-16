@@ -112,7 +112,7 @@ export const invoices = pgTable("invoices", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   
   status: text("status").notNull(), // 'Pending', 'Paid', 'Overdue'
-  date: date("date").defaultNow().notNull(),
+  date: timestamp("date").defaultNow().notNull(),
 });
 
 export const invoicesRelations = relations(invoices, ({ one }) => ({

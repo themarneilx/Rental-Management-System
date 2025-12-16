@@ -318,13 +318,13 @@ export default function BillingPage() {
 
   const monthsSet = new Set(invoices.map(inv => {
       // Extract YYYY-MM from potential range
-      if (inv.rentPeriod.includes(' to ')) {
-          return inv.rentPeriod.split(' to ')[0].slice(0, 7);
+      if (inv.utilityPeriod.includes(' to ')) {
+          return inv.utilityPeriod.split(' to ')[0].slice(0, 7);
       }
-      return inv.rentPeriod;
+      return inv.utilityPeriod;
   }));
   monthsSet.add(new Date().toISOString().slice(0, 7));
-  const availableMonths = Array.from(monthsSet).sort().reverse();
+  const availableMonths = Array.from(monthsSet).sort();
 
   const filteredInvoices = invoices.filter(inv => 
       inv.rentPeriod.startsWith(billingMonthTab) || inv.utilityPeriod.startsWith(billingMonthTab)
@@ -840,14 +840,14 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
              
              <div className="grid grid-cols-2 gap-4">
                 <DateRangeInput 
-                    label="Rent Billing Period"
-                    value={rentPeriod}
-                    onChange={setRentPeriod}
-                />
-                <DateRangeInput 
                     label="Utilities Billing Period"
                     value={utilityPeriod}
                     onChange={setUtilityPeriod}
+                />
+                <DateRangeInput 
+                    label="Rent Billing Period"
+                    value={rentPeriod}
+                    onChange={setRentPeriod}
                 />
              </div>
           </div>
@@ -1160,14 +1160,14 @@ function ViewInvoiceModal({ onClose, invoice, rates, tenants, units }: any) {
 
   return (
     <ModalPortal>
-    <div className="modal modal-open z-[60]">
+    <div className="modal modal-open z-[60] print-invoice-portal">
       <div className="modal-box w-11/12 max-w-3xl bg-white rounded-xl shadow-xl p-0 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
              <h3 className="text-xl font-bold text-slate-900">Invoice Details</h3>
              <p className="text-sm text-slate-500 font-mono">{invoice.id}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors no-print">
              <X className="w-6 h-6" />
           </button>
         </div>
@@ -1311,7 +1311,7 @@ function ViewInvoiceModal({ onClose, invoice, rates, tenants, units }: any) {
            </div>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end gap-3">
+        <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end gap-3 no-print">
            <button onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
               Close
            </button>
@@ -1321,7 +1321,7 @@ function ViewInvoiceModal({ onClose, invoice, rates, tenants, units }: any) {
         </div>
 
       </div>
-      <form method="dialog" className="modal-backdrop">
+      <form method="dialog" className="modal-backdrop no-print">
         <button onClick={onClose}>close</button>
       </form>
     </div>
