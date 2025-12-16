@@ -327,7 +327,7 @@ export default function BillingPage() {
   const availableMonths = Array.from(monthsSet).sort();
 
   const filteredInvoices = invoices.filter(inv => 
-      inv.rentPeriod.startsWith(billingMonthTab) || inv.utilityPeriod.startsWith(billingMonthTab)
+      inv.utilityPeriod.startsWith(billingMonthTab)
   );
 
   const handleAddInvoice = async (newReadingData: any) => {
@@ -372,7 +372,7 @@ export default function BillingPage() {
 
             setInvoices([mappedInvoice, ...invoices]);
             setIsBillingModalOpen(false);
-            setBillingMonthTab(mappedInvoice.rentPeriod.slice(0, 7));
+            setBillingMonthTab(mappedInvoice.utilityPeriod.slice(0, 7));
         } else {
             alert('Failed to generate invoice');
         }
