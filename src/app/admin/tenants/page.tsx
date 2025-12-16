@@ -541,6 +541,7 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
 
 function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenant: Tenant, unit: Unit | null }) {
     const [isContractOpen, setIsContractOpen] = useState(false);
+    const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
     return (
     <ModalPortal>
@@ -552,9 +553,12 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
                 </div>
                 <div className="p-6 space-y-6">
                     <div className="flex items-start gap-3 p-3 border border-slate-100 rounded-lg">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold">
+                        <div 
+                          className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          onClick={() => tenant.avatarUrl && setIsAvatarOpen(true)}
+                        >
                             {tenant.avatarUrl ? (
-                                <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                                <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 tenant.name.charAt(0)
                             )}
@@ -617,6 +621,10 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
             
             {isContractOpen && tenant.contractUrl && (
                 <ContractModal url={tenant.contractUrl} onClose={() => setIsContractOpen(false)} />
+            )}
+
+            {isAvatarOpen && tenant.avatarUrl && (
+                <ContractModal url={tenant.avatarUrl} onClose={() => setIsAvatarOpen(false)} />
             )}
 
             <form method="dialog" className="modal-backdrop">
