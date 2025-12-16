@@ -64,6 +64,8 @@ export async function GET(request: Request) {
                 rent: Number(inv.rentAmount),
                 water: Number(inv.waterCost),
                 elec: Number(inv.elecCost),
+                penalty: Number(inv.penalty || 0),
+                prevBalance: Number(inv.prevBalance || 0),
                 amountPaid: Number(inv.amountPaid || 0)
             }
         })),
@@ -80,14 +82,15 @@ export async function GET(request: Request) {
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
 
-    // 5. Calculate Total Due (Sum of all invoices that are NOT 'Paid')
+    // 5. Calculate Total Due (Sum of all invoices that are NOT 'Paid' AND NOT 'Revoked')
     const unpaidInvoices = await db.select({
         totalAmount: invoices.totalAmount,
         amountPaid: invoices.amountPaid
     }).from(invoices).where(
         and(
             eq(invoices.tenantId, userId),
-            ne(invoices.status, 'Paid')
+            ne(invoices.status, 'Paid'),
+            ne(invoices.status, 'Revoked')
         )
     );
 
@@ -106,6 +109,31 @@ export async function GET(request: Request) {
     });
     const hasPendingPayment = !!pendingPayment;
 
+    // Combine for Recent Activity Preview (Top 4)
+    const recentActivity = [
+        ...recentInvoices.map(inv => ({
+            id: inv.invoiceNumber,
+            type: 'INVOICE',
+            date: inv.date,
+            amount: Number(inv.totalAmount),
+            status: inv.status,
+            details: {
+                rentPeriod: inv.rentPeriod,
+                utilityPeriod: inv.utilityPeriod
+            }
+        })),
+        ...payments.map(pay => ({
+            id: pay.id,
+            type: 'PAYMENT',
+            date: pay.submittedAt,
+            amount: Number(pay.amount),
+            status: pay.status,
+            details: {
+                message: pay.message
+            }
+        }))
+    ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 4);
+
     return NextResponse.json({
       name: tenantData.name,
       email: tenantData.email,
@@ -117,18 +145,7 @@ export async function GET(request: Request) {
       contractUrl: tenantData.contractUrl,
       totalDue: totalDue,
       hasPendingPayment: hasPendingPayment,
-      recentInvoices: recentInvoices.map(inv => ({
-        id: inv.invoiceNumber, // using invoiceNumber as display ID
-        rentPeriod: inv.rentPeriod,
-        utilityPeriod: inv.utilityPeriod,
-        total: Number(inv.totalAmount),
-        amountPaid: Number(inv.amountPaid || 0), // Include amountPaid
-        status: inv.status,
-        rent: Number(inv.rentAmount),
-        water: Number(inv.waterCost),
-        elec: Number(inv.elecCost),
-        date: inv.date
-      })),
+      recentActivity: recentActivity, // Renamed from recentInvoices
       billingHistory: history.map(h => ({
           ...h,
           date: h.date.toISOString()

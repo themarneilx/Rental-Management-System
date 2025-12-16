@@ -51,6 +51,11 @@ body {
 
 /* Print Styles */
 @media print {
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
   /* Hide everything by default */
   body > *:not(.print-invoice-portal) {
     display: none !important;
@@ -60,6 +65,7 @@ body {
   body, html {
     height: auto !important;
     overflow: visible !important;
+    background: white !important;
   }
 
   /* Style the portal wrapper */
@@ -74,17 +80,29 @@ body {
     background: white !important;
   }
 
-  /* Override Modal Styles */
+  /* Override Modal Styles - Aggressive Reset */
   .print-invoice-portal .modal-box {
     max-height: none !important;
+    min-height: 100% !important;
+    height: auto !important;
     overflow: visible !important;
     width: 100% !important;
     max-width: none !important;
     box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
+    padding: 20px !important; /* Add padding for print margin */
     margin: 0 !important;
     background: white !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: block !important;
+  }
+
+  /* Ensure inner content expands */
+  .print-invoice-portal .modal-box * {
+    overflow: visible !important;
+    height: auto !important;
   }
 
   /* Hide backdrop and close buttons */

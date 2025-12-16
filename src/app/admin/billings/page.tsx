@@ -300,6 +300,7 @@ export default function BillingPage() {
         return acc;
     }, 0),
     receivables: invoices.reduce((acc, curr) => {
+        if (curr.status === 'Revoked') return acc; // Exclude revoked
         if (curr.status === 'Pending' || curr.status === 'Overdue') {
             return acc + curr.total;
         }
@@ -538,10 +539,10 @@ export default function BillingPage() {
                   const tenant = tenants.find(t => t.id === inv.tenantId) || { name: 'Unknown' } as Tenant;
                   const unit = units.find(u => u.id === inv.unitId) || { name: '?', building: '' } as Unit;
                   return (
-                    <tr key={inv.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4 font-mono text-blue-600 text-xs font-medium">{inv.id}</td>
+                    <tr key={inv.id} className={`hover:bg-slate-50/50 ${inv.status === 'Revoked' ? 'opacity-50 bg-slate-50' : ''}`}>
+                      <td className={`px-6 py-4 font-mono text-xs font-medium ${inv.status === 'Revoked' ? 'text-slate-500 line-through' : 'text-blue-600'}`}>{inv.id}</td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-slate-900">{tenant.name}</div>
+                        <div className={`font-medium ${inv.status === 'Revoked' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{tenant.name}</div>
                         <div className="text-xs text-slate-500">{unit.name} • {unit.building}</div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
@@ -732,13 +733,11 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
 
         // Calculate total outstanding balance from all previous invoices
         const outstandingBalance = tenantInvoices.reduce((sum: number, inv: Invoice) => {
-            // Only consider invoices that are not fully paid
-            if (inv.status !== 'Paid' && inv.amountPaid !== undefined) {
-                const remaining = inv.total - inv.amountPaid;
-                return sum + Math.max(0, remaining); // Only positive remaining balances
-            } else if (inv.status !== 'Paid' && inv.amountPaid === undefined) {
-                // In case amountPaid is not defined for older invoices
-                return sum + inv.total;
+            // Only consider invoices that are not fully paid AND not revoked
+            if (inv.status !== 'Paid' && inv.status !== 'Revoked') {
+                const paid = inv.amountPaid || 0;
+                const remaining = inv.total - paid;
+                return sum + Math.max(0, remaining);
             }
             return sum;
         }, 0);

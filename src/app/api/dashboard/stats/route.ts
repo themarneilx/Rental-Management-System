@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { invoices, rooms } from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
 
 export async function GET(request: Request) {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     // 3. Outstanding Balance (Unpaid Invoices)
     const pendingResult = await db.select({ 
         total: sql<number>`sum(${invoices.totalAmount})` 
-    }).from(invoices).where(eq(invoices.status, 'Pending'));
+    }).from(invoices).where(inArray(invoices.status, ['Pending', 'Overdue', 'Partial']));
     
     const outstandingBalance = Number(pendingResult[0]?.total) || 0;
 

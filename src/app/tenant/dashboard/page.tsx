@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Building2, 
   ArrowRight, 
+  ArrowUpRight,
   Calendar, 
   CreditCard, 
   Check, 
@@ -20,7 +21,7 @@ import { formatDateMonth } from '@/lib/utils';
 export default function TenantDashboardPage() {
   const router = useRouter();
   const [userData, setUserData] = useState<TenantUser>(MOCK_TENANT_USER);
-  const [invoices, setInvoices] = useState<TenantInvoice[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]); // Changed type to any[] or specific interface
   const [totalDue, setTotalDue] = useState(0);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [hasPendingPayment, setHasPendingPayment] = useState(false); 
@@ -42,7 +43,7 @@ export default function TenantDashboardPage() {
             avatar: data.avatarUrl,
             contractUrl: data.contractUrl,
           }));
-          setInvoices(data.recentInvoices);
+          setRecentActivity(data.recentActivity);
           setTotalDue(data.totalDue);
           setHasPendingPayment(data.hasPendingPayment);
         } else {
@@ -132,30 +133,38 @@ export default function TenantDashboardPage() {
             </div>
         </div>
 
-        {/* Recent Invoices Preview */}
+        {/* Recent Activity Preview */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-900">Recent Billing History</h3>
+            <h3 className="font-bold text-slate-900">Recent Activity</h3>
             <Button onClick={() => router.push('/tenant/billing')} variant="ghost" className="text-sm">
                 View All <ArrowRight className="w-4 h-4" />
             </Button>
             </div>
             <div className="space-y-4">
-            {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
+            {recentActivity.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500">
-                    <FileText className="w-5 h-5" />
+                    <div className={`p-2 bg-white rounded-lg border border-slate-200 ${item.type === 'PAYMENT' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                        {item.type === 'PAYMENT' ? <ArrowUpRight className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                     </div>
                     <div>
-                    <p className="font-semibold text-slate-900">Rent & Utilities</p>
-                    <p className="text-xs text-slate-500">Rent: {formatDateMonth(inv.rentPeriod)}</p>
-                    <p className="text-xs text-slate-500">Utilities: {formatDateMonth(inv.utilityPeriod)}</p>
+                        <p className="font-semibold text-slate-900">{item.type === 'PAYMENT' ? 'Payment Submission' : 'Rent & Utilities'}</p>
+                        {item.type === 'INVOICE' ? (
+                            <>
+                                <p className="text-xs text-slate-500">Rent: {formatDateMonth(item.details.rentPeriod)}</p>
+                                <p className="text-xs text-slate-500">Utilities: {formatDateMonth(item.details.utilityPeriod)}</p>
+                            </>
+                        ) : (
+                            <p className="text-xs text-slate-500">{new Date(item.date).toLocaleDateString()}</p>
+                        )}
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="font-bold text-slate-900">₱{inv.total.toLocaleString()}</p>
-                    <Badge status={inv.status} />
+                    <p className={`font-bold ${item.type === 'PAYMENT' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        {item.type === 'PAYMENT' ? '-' : ''}₱{item.amount.toLocaleString()}
+                    </p>
+                    <Badge status={item.status} type={item.type === 'PAYMENT' ? 'payment' : 'invoice'} />
                 </div>
                 </div>
             ))}

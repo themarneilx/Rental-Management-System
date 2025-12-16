@@ -44,13 +44,24 @@ export default function PaymentModal({ onClose, user, onSuccess }: PaymentModalP
     setIsConfirmOpen(true);
   };
 
-  const handleConfirmSubmit = async () => {
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/[^0-9.]/g, '');
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+            // Add commas for display
+            const parts = value.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            setFormData({ ...formData, amount: parts.join('.') });
+        }
+    };
+
+    const handleConfirmSubmit = async () => {
     setIsConfirmOpen(false);
     setIsSubmitting(true);
 
     try {
         const data = new FormData();
-        data.append('amount', formData.amount);
+        // Remove commas before sending
+        data.append('amount', formData.amount.replace(/,/g, ''));
         data.append('message', formData.message);
         if (formData.receipt) {
             data.append('receipt', formData.receipt);
@@ -76,6 +87,7 @@ export default function PaymentModal({ onClose, user, onSuccess }: PaymentModalP
         setIsSubmitting(false);
     }
   };
+
 
   // Function to close success modal and parent PaymentModal
   const closeSuccessModal = () => {
@@ -164,15 +176,17 @@ export default function PaymentModal({ onClose, user, onSuccess }: PaymentModalP
 
                     <div>
                         <label className="block text-xs font-medium text-slate-500 mb-1">Amount Paid</label>
-                        <input 
-                            type="number" 
-                            className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono" 
-                            placeholder="0.00"
-                            value={formData.amount} 
-                            onChange={e => setFormData({...formData, amount: e.target.value})} 
-                            required 
-                            min="0"
-                        />
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₱</span>
+                            <input 
+                                type="text" 
+                                className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono" 
+                                placeholder="0.00"
+                                value={formData.amount} 
+                                onChange={handleAmountChange} 
+                                required 
+                            />
+                        </div>
                     </div>
                     
                     <div>
@@ -227,7 +241,9 @@ export default function PaymentModal({ onClose, user, onSuccess }: PaymentModalP
             onClose={() => setIsConfirmOpen(false)}
             onConfirm={handleConfirmSubmit}
             title="Confirm Submission"
-            message="Are you sure you want to submit this payment proof? You can only do this once.\n\nIf you make a mistake, you will need to contact us directly."
+            message={`Are you sure you want to submit this payment proof? You can only do this once.
+
+If you make a mistake, you will need to contact us directly.`}
             variant="warning" // Added variant
         />
 

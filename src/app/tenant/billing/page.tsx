@@ -28,6 +28,8 @@ interface BillingHistoryItem {
         rent: number;
         water: number;
         elec: number;
+        penalty: number;
+        prevBalance: number;
         amountPaid: number;
     } | null;
 }
@@ -126,6 +128,15 @@ export default function TenantBillingPage() {
                                                                                                                     <span>Rent: ₱{item.details.rent.toLocaleString()}</span>
                                                                                                                     <span>Water: ₱{item.details.water.toLocaleString()}</span>
                                                                                                                     <span>Electricity: ₱{item.details.elec.toLocaleString()}</span>
+                                                                                                                    {item.details.penalty > 0 && (
+                                                                                                                        <span className="text-rose-600">Penalty: ₱{item.details.penalty.toLocaleString()}</span>
+                                                                                                                    )}
+                                                                                                                    <span className={
+                                                                                                                        item.details.prevBalance > 0 ? 'text-amber-600' : 
+                                                                                                                        item.details.prevBalance < 0 ? 'text-emerald-600' : 'text-slate-500'
+                                                                                                                    }>
+                                                                                                                        Prev Balance: ₱{Math.abs(item.details.prevBalance).toLocaleString()}
+                                                                                                                    </span>
                                                                                                                     <span>Paid: ₱{item.details.amountPaid.toLocaleString()}</span>
                                                                                                                 </div>
                                                                                                                 <div className="pt-1 border-t border-slate-100 mt-1 space-y-0.5">
