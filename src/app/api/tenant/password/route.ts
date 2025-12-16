@@ -42,7 +42,10 @@ export async function PUT(request: Request) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await db.update(tenants)
-      .set({ password: hashedPassword })
+      .set({ 
+        password: hashedPassword,
+        mustChangePassword: false
+      })
       .where(eq(tenants.id, tenant.id));
 
     return NextResponse.json({ message: 'Password updated successfully' });

@@ -23,6 +23,7 @@ export const tenants = pgTable("tenants", {
   deposit: decimal("deposit", { precision: 10, scale: 2 }).notNull(),
   leaseEnd: date("lease_end").notNull(),
   status: text("status").notNull(), // 'Active', 'Archived'
+  mustChangePassword: boolean("must_change_password").default(false).notNull(),
   avatarUrl: text("avatar_url"),
   contractUrl: text("contract_url"),
   

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import TenantSidebar from "@/components/TenantSidebar";
 import Header from "@/components/Header";
+import ForceChangePasswordModal from "@/components/tenant/ForceChangePasswordModal";
 
 export default function TenantLayout({
   children,
@@ -10,7 +11,7 @@ export default function TenantLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; avatar?: string | null } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; avatar?: string | null; mustChangePassword?: boolean } | null>(null);
   const [initials, setInitials] = useState<string>('TU');
 
   useEffect(() => {
@@ -46,6 +47,11 @@ export default function TenantLayout({
             </div>
         </main>
       </div>
+      
+      {/* Force Change Password Modal */}
+      {user?.mustChangePassword && (
+        <ForceChangePasswordModal onSuccess={() => setUser(prev => prev ? ({ ...prev, mustChangePassword: false }) : null)} />
+      )}
       
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (

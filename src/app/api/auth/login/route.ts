@@ -38,12 +38,18 @@ export async function POST(request: Request) {
     }
 
     // Create JWT
-    const token = await new SignJWT({ 
+    const payload: any = { 
       sub: user.id, 
       email: user.email, 
       role: role,
       name: user.name 
-    })
+    };
+
+    if (role === 'tenant' && 'mustChangePassword' in user) {
+      payload.mustChangePassword = user.mustChangePassword;
+    }
+
+    const token = await new SignJWT(payload)
       .setProtectedHeader({ alg: ALG })
       .setIssuedAt()
       .setExpirationTime('24h') // 24 hours

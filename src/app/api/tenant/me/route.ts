@@ -48,6 +48,7 @@ export async function GET(request: Request) {
       building: tenantData.room?.building?.name || 'N/A',
       leaseEnd: tenantData.leaseEnd,
       avatar: tenantData.avatarUrl,
+      mustChangePassword: tenantData.mustChangePassword,
     };
 
     return NextResponse.json(tenantUser);

@@ -669,6 +669,27 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
         setSaving(false);
     };
 
+    const handleResetPassword = async () => {
+        if (!confirm("Are you sure you want to reset the password for this tenant? This will generate a new random password.")) return;
+        
+        try {
+            const res = await fetch(`/api/tenants/${tenant.id}/reset-password`, {
+                method: 'PUT'
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Password Reset Successful!\n\nNew Password: ${data.password}\n\nPlease copy this password and share it with the tenant.`);
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to reset password");
+            }
+        } catch (error) {
+            console.error("Error resetting password:", error);
+            alert("Error resetting password");
+        }
+    };
+
     return (
     <ModalPortal>
         <div className="modal modal-open z-[60]">
@@ -740,11 +761,16 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                          {contractFile && <p className="text-xs text-emerald-600 mt-1">Selected: {contractFile.name}</p>}
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-                        <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
-                            {saving ? 'Saving...' : 'Save Changes'}
+                    <div className="pt-4 flex justify-between items-center">
+                        <button type="button" onClick={handleResetPassword} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+                            Reset Password
                         </button>
+                        <div className="flex gap-3">
+                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+                            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
