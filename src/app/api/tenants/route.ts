@@ -110,6 +110,7 @@ export async function POST(request: Request) {
         leaseEnd: new Date(leaseEnd).toISOString(),
         status: 'Active',
         roomId: roomId || null,
+        mustChangePassword: true, // Set to true for new tenants
       };
 
       if (avatarUrl) {
