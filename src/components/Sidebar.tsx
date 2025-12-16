@@ -17,7 +17,7 @@ import {
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  user: { name: string; email: string } | null;
+  user: { name: string; email: string; avatarUrl?: string | null } | null;
 }
 
 const MENU_ITEMS = [
@@ -99,8 +99,12 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, user }: SidebarPr
       <div className="p-4 border-t border-slate-800">
          <div className="p-4 rounded-xl bg-[#1e293b] border border-slate-700/50">
            <div className="flex items-center gap-3 mb-3">
-             <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold border border-slate-600">
-               {initials}
+             <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold border border-slate-600 overflow-hidden">
+               {user?.avatarUrl ? (
+                 <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+               ) : (
+                 initials
+               )}
              </div>
              <div className="flex-1 min-w-0">
                <p className="text-sm font-medium text-white truncate">{user?.name || 'Loading...'}</p>
