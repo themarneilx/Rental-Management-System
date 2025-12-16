@@ -5,7 +5,7 @@ import { X, Building2, Check, ArrowRight, Image as ImageIcon } from 'lucide-reac
 import Button from '@/components/ui/Button';
 import ModalPortal from '@/components/ui/ModalPortal';
 import ConfirmationModal from './ConfirmationModal'; // Reusing the updated ConfirmationModal
-import { TenantUser } from '@/data/mock';
+import { TenantUser } from '@/lib/types';
 
 interface PaymentModalProps {
     onClose: () => void;

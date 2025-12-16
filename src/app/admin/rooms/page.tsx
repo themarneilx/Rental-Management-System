@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Unit, Tenant } from "@/data/mock";
+import { Unit, Tenant } from "@/lib/types";
 import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, AlertTriangle } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
@@ -323,7 +323,7 @@ export default function RoomsPage() {
                     <td className="px-6 py-4">
                        {currentTenant ? (
                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold overflow-hidden">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0">
                                 {currentTenant.avatarUrl ? (
                                     <img src={currentTenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -715,7 +715,7 @@ function ViewRoomModal({ onClose, room, tenant }: { onClose: () => void, room: U
                          {tenant ? (
                              <div className="flex items-start gap-3 p-3 border border-slate-100 rounded-lg">
                                  <div 
-                                    className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden flex-shrink-0 ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                                     onClick={() => tenant.avatarUrl && setIsAvatarOpen(true)}
                                  >
                                      {tenant.avatarUrl ? (

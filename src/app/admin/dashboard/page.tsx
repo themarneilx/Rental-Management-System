@@ -16,7 +16,17 @@ import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import ModalPortal from "@/components/ui/ModalPortal";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react"; // Import useState
+import useSWR from "swr"; // Import SWR
+
+// Define a fetcher function for SWR
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error('Failed to fetch data');
+    }
+    return res.json();
+};
 
 const ICON_MAP: any = {
     'Users': Users,
@@ -25,58 +35,46 @@ const ICON_MAP: any = {
     'AlertCircle': AlertCircle
 };
 
-export default function DashboardPage() {
-  const [statsData, setStatsData] = useState({
-    totalTenants: 0, 
-    occupancyRate: 0,
-    totalRevenue: 0,
-    outstandingBalance: 0,
-    occupiedRooms: 0,
-    totalRooms: 0
-  });
-  const [activity, setActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+// Skeleton Loader Component for StatCard
+const StatCardSkeleton = () => (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-pulse">
+        <div className="h-6 w-2/3 bg-slate-200 rounded mb-3"></div>
+        <div className="h-8 w-1/2 bg-slate-200 rounded mb-2"></div>
+        <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+    </div>
+);
 
-  // View All Modal State
+// Skeleton Loader for Activity Item
+const ActivityItemSkeleton = () => (
+    <div className="flex items-start gap-4 animate-pulse">
+        <div className="p-2 rounded-full bg-slate-200 h-9 w-9"></div>
+        <div className="flex-1 space-y-2">
+            <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+            <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+        </div>
+        <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+    </div>
+);
+
+
+export default function DashboardPage() {
+  const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR('/api/dashboard/stats', fetcher, { refreshInterval: 5000 });
+  const { data: activityData, error: activityError, isLoading: activityLoading } = useSWR('/api/dashboard/activity', fetcher, { refreshInterval: 5000 });
+
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [allActivity, setAllActivity] = useState<any[]>([]);
   const [loadingAllActivity, setLoadingAllActivity] = useState(false);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [statsRes, activityRes] = await Promise.all([
-            fetch('/api/dashboard/stats'),
-            fetch('/api/dashboard/activity')
-        ]);
-
-        if (statsRes.ok) {
-          const data = await statsRes.json();
-          setStatsData(data);
-        }
-        if (activityRes.ok) {
-            const data = await activityRes.json();
-            setActivity(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  const stats = [
+  const stats = statsData ? [
     { label: "Occupancy Rate", value: `${statsData.occupancyRate}%`, trend: `${statsData.occupiedRooms}/${statsData.totalRooms} Units`, icon: Users, colorClass: "bg-blue-50 text-blue-600" },
     { label: "Occupied Units", value: statsData.occupiedRooms, trend: "Active", icon: DoorOpen, colorClass: "bg-amber-50 text-amber-600" },
     { label: "Total Revenue", value: `₱${statsData.totalRevenue.toLocaleString()}`, trend: "Lifetime", icon: CreditCard, colorClass: "bg-emerald-50 text-emerald-600" },
     { label: "Outstanding Balance", value: `₱${statsData.outstandingBalance.toLocaleString()}`, icon: AlertCircle, colorClass: "bg-rose-50 text-rose-600" },
-  ];
+  ] : [];
 
   const handleViewAllActivity = async () => {
       setIsActivityModalOpen(true);
-      if (allActivity.length > 0) return;
+      if (allActivity.length > 0) return; // Don't re-fetch if already loaded
 
       setLoadingAllActivity(true);
       try {
@@ -92,24 +90,26 @@ export default function DashboardPage() {
       }
   };
 
-  if (loading) {
-      return <div className="p-6">Loading dashboard stats...</div>;
-  }
+  if (statsError || activityError) return <div className="p-6 text-red-600">Failed to load dashboard data.</div>;
 
   return (
     <div className="space-y-6 animate-slide-in">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <StatCard 
-            key={index}
-            label={stat.label}
-            value={stat.value}
-            trend={stat.trend}
-            icon={stat.icon}
-            colorClass={stat.colorClass}
-          />
-        ))}
+        {statsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+            stats.map((stat, index) => (
+                <StatCard 
+                    key={index}
+                    label={stat.label}
+                    value={stat.value}
+                    trend={stat.trend}
+                    icon={stat.icon}
+                    colorClass={stat.colorClass}
+                />
+            ))
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -120,10 +120,12 @@ export default function DashboardPage() {
             <button onClick={handleViewAllActivity} className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
           </div>
           <div className="space-y-6">
-            {activity.length === 0 ? (
+            {activityLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <ActivityItemSkeleton key={i} />)
+            ) : activityData?.length === 0 ? (
                 <p className="text-sm text-slate-500 italic">No recent activity.</p>
             ) : (
-                activity.map((item, i) => {
+                activityData?.map((item: any, i: number) => {
                     const IconComponent = ICON_MAP[item.icon] || AlertCircle;
                     return (
                         <div key={i} className="flex items-start gap-4">

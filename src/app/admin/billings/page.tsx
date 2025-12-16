@@ -1,11 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Invoice, Tenant, Unit } from "@/data/mock";
+import useSWR, { Fetcher } from "swr";
+import { Invoice, Tenant, Unit } from "@/lib/types";
 import { Plus, Zap, Settings, Eye, Pencil, Calendar, Droplets, X, DollarSign } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
+
+const fetcher: Fetcher<any, string> = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        const error = new Error('An error occurred while fetching the data.') as any;
+        error.info = await res.json();
+        error.status = res.status;
+        throw error;
+    }
+    return res.json();
+};
 
 // Helper functions from design.jsx
 const formatDateMonth = (dateStr: string) => {
@@ -197,12 +209,12 @@ function DateRangeInput({ label, value, onChange, required = false }: { label: s
 }
 
 export default function BillingPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [rates, setRates] = useState({ ELECTRICITY: 21, WATER: 70 });
+  const { data: invData, error: invError, isLoading: invLoading, mutate: mutateInvoices } = useSWR('/api/invoices', fetcher);
+  const { data: tenData, error: tenError, isLoading: tenLoading } = useSWR('/api/tenants', fetcher);
+  const { data: unitData, error: unitError, isLoading: unitLoading } = useSWR('/api/rooms', fetcher);
+  const { data: ratesData, error: ratesError, isLoading: ratesLoading, mutate: mutateRates } = useSWR('/api/settings/rates', fetcher);
+
   const [billingMonthTab, setBillingMonthTab] = useState(new Date().toISOString().slice(0, 7));
-  const [loading, setLoading] = useState(true);
   
   // Modal States
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -218,75 +230,50 @@ export default function BillingPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-        try {
-            const [invRes, tenRes, unitRes, ratesRes] = await Promise.all([
-                fetch('/api/invoices'),
-                fetch('/api/tenants'),
-                fetch('/api/rooms'),
-                fetch('/api/settings/rates')
-            ]);
+  const invoices: Invoice[] = invData ? invData.map((inv: any) => ({
+    id: inv.invoiceNumber, // Use invoiceNumber for display ID
+    tenantId: inv.tenantId,
+    unitId: inv.unitId,
+    rentPeriod: inv.rentPeriod,
+    utilityPeriod: inv.utilityPeriod,
+    rent: Number(inv.rentAmount),
+    waterReading: { prev: Number(inv.waterPrev), curr: Number(inv.waterCurr) },
+    elecReading: { prev: Number(inv.elecPrev), curr: Number(inv.elecCurr) },
+    waterCost: Number(inv.waterCost),
+    elecCost: Number(inv.elecCost),
+    penalty: Number(inv.penalty),
+    prevBalance: Number(inv.prevBalance),
+    credit: Number(inv.credit),
+    total: Number(inv.totalAmount),
+    status: inv.status,
+    date: inv.date,
+    amountPaid: Number(inv.amountPaid || 0)
+  })) : [];
 
-            if (invRes.ok && tenRes.ok && unitRes.ok && ratesRes.ok) {
-                const invData = await invRes.json();
-                const tenData = await tenRes.json();
-                const unitData = await unitRes.json();
-                const ratesData = await ratesRes.json();
+  const tenants: Tenant[] = tenData ? tenData.map((t: any) => ({
+    id: t.id,
+    name: t.name,
+    email: t.email || '',
+    phone: t.phone,
+    unitId: t.roomId,
+    status: t.status,
+    leaseEnd: t.leaseEnd?.split('T')[0] || '',
+    deposit: Number(t.deposit)
+  })) : [];
 
-                const mappedInvoices: Invoice[] = invData.map((inv: any) => ({
-                    id: inv.invoiceNumber, // Use invoiceNumber for display ID
-                    tenantId: inv.tenantId,
-                    unitId: inv.unitId,
-                    rentPeriod: inv.rentPeriod,
-                    utilityPeriod: inv.utilityPeriod,
-                    rent: Number(inv.rentAmount),
-                    waterReading: { prev: Number(inv.waterPrev), curr: Number(inv.waterCurr) },
-                    elecReading: { prev: Number(inv.elecPrev), curr: Number(inv.elecCurr) },
-                    waterCost: Number(inv.waterCost),
-                    elecCost: Number(inv.elecCost),
-                    penalty: Number(inv.penalty),
-                    prevBalance: Number(inv.prevBalance),
-                    credit: Number(inv.credit),
-                    total: Number(inv.totalAmount),
-                    status: inv.status,
-                    date: inv.date,
-                    amountPaid: Number(inv.amountPaid || 0) // Initialize amountPaid from fetched data, defaulting to 0
-                }));
+  const units: Unit[] = unitData ? unitData.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    building: r.building?.name || 'Unknown',
+    type: r.type,
+    rent: Number(r.rent),
+    status: r.status
+  })) : [];
 
-                const mappedTenants: Tenant[] = tenData.map((t: any) => ({
-                    id: t.id,
-                    name: t.name,
-                    email: t.email || '',
-                    phone: t.phone,
-                    unitId: t.roomId,
-                    status: t.status,
-                    leaseEnd: t.leaseEnd?.split('T')[0] || '',
-                    deposit: Number(t.deposit)
-                }));
+  const rates = ratesData || { ELECTRICITY: 21, WATER: 70 };
 
-                const mappedUnits: Unit[] = unitData.map((r: any) => ({
-                    id: r.id,
-                    name: r.name,
-                    building: r.building?.name || 'Unknown',
-                    type: r.type,
-                    rent: Number(r.rent),
-                    status: r.status
-                }));
-
-                setInvoices(mappedInvoices);
-                setTenants(mappedTenants);
-                setUnits(mappedUnits);
-                setRates(ratesData);
-            }
-        } catch (error) {
-            console.error("Failed to fetch billing data", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-    fetchData();
-  }, []);
+  const isLoading = invLoading || tenLoading || unitLoading || ratesLoading;
+  const isError = invError || tenError || unitError || ratesError;
 
   // Derived Data (Calculated from real invoices)
   const stats = {
@@ -349,31 +336,10 @@ export default function BillingPage() {
         });
 
         if (res.ok) {
-            const generatedInvoice: any = await res.json(); // Cast to any to resolve type issue
-             const mappedInvoice: Invoice = {
-                id: generatedInvoice.invoiceNumber,
-                tenantId: generatedInvoice.tenantId,
-                unitId: generatedInvoice.unitId,
-                rentPeriod: generatedInvoice.rentPeriod,
-                utilityPeriod: generatedInvoice.utilityPeriod,
-                rent: Number(generatedInvoice.rentAmount),
-                waterReading: { prev: Number(generatedInvoice.waterPrev), curr: Number(generatedInvoice.waterCurr) },
-                elecReading: { prev: Number(generatedInvoice.elecPrev), curr: Number(generatedInvoice.elecCurr) },
-                waterCost: Number(generatedInvoice.waterCost),
-                elecCost: Number(generatedInvoice.elecCost),
-                penalty: Number(generatedInvoice.penalty),
-                prevBalance: Number(generatedInvoice.prevBalance),
-                // @ts-ignore
-                credit: Number(generatedInvoice.credit), // Restored
-                total: Number(generatedInvoice.totalAmount),
-                status: generatedInvoice.status,
-                date: generatedInvoice.date,
-                amountPaid: 0 // Initialize amountPaid for new invoices
-            };
-
-            setInvoices([mappedInvoice, ...invoices]);
+            // Revalidate all invoices data to include the new invoice
+            mutateInvoices(); 
             setIsBillingModalOpen(false);
-            setBillingMonthTab(mappedInvoice.utilityPeriod.slice(0, 7));
+            setBillingMonthTab(newReadingData.utilityPeriod.slice(0, 7));
         } else {
             alert('Failed to generate invoice');
         }
@@ -382,11 +348,24 @@ export default function BillingPage() {
     }
   };
 
-  const handleUpdateInvoice = (updatedInvoice: Invoice) => {
-    // TODO: Implement API update
-    setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
-    setIsEditInvoiceModalOpen(false);
-    setEditingInvoice(null);
+  const handleUpdateInvoice = async (updatedInvoice: Invoice) => {
+    try {
+        const res = await fetch(`/api/invoices/${updatedInvoice.id}`, { // Assuming an update endpoint like /api/invoices/[id]
+            method: 'PUT', // or PATCH
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedInvoice)
+        });
+
+        if (res.ok) {
+            mutateInvoices(); // Revalidate invoices after update
+            setIsEditInvoiceModalOpen(false);
+            setEditingInvoice(null);
+        } else {
+            alert('Failed to update invoice');
+        }
+    } catch (error) {
+        console.error('Error updating invoice:', error);
+    }
   };
 
   const handleUpdateRates = async (newRates: { ELECTRICITY: number, WATER: number }) => {
@@ -398,7 +377,7 @@ export default function BillingPage() {
         });
 
         if (res.ok) {
-            setRates(newRates);
+            mutateRates(); // Revalidate rates after update
             setIsRateModalOpen(false);
         } else {
             alert('Failed to update rates');
@@ -432,13 +411,7 @@ export default function BillingPage() {
           });
 
           if (res.ok) {
-              const data = await res.json();
-              setInvoices(prev => prev.map(inv => {
-                  if (inv.id === invoiceId) {
-                     return { ...inv, status: data.status, amountPaid: data.amountPaid };
-                  }
-                  return inv;
-              }));
+              mutateInvoices(); // Revalidate invoices after payment
               setIsPaymentModalOpen(false);
               setPaymentInvoice(null);
           } else {
@@ -450,7 +423,8 @@ export default function BillingPage() {
       }
   };
 
-  if (loading) return <div className="p-6">Loading billing data...</div>;
+  if (isLoading) return <div className="p-6">Loading billing data...</div>;
+  if (isError) return <div className="p-6 text-red-600">Failed to load billing data: {isError.message}</div>;
 
   return (
     <div className="space-y-6 animate-slide-in">
@@ -866,8 +840,8 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-500">Previous</label>
-                  <input type="number" className="w-full p-2 border border-slate-200 rounded text-sm bg-slate-50" 
-                    value={prevElec} readOnly />
+                  <input type="number" className="w-full p-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-blue-500" 
+                    value={prevElec} onChange={(e) => setPrevElec(Number(e.target.value))} />
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Present</label>
@@ -889,8 +863,8 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
                <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-500">Previous</label>
-                  <input type="number" className="w-full p-2 border border-slate-200 rounded text-sm bg-slate-50" 
-                    value={prevWater} readOnly />
+                  <input type="number" className="w-full p-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-cyan-500" 
+                    value={prevWater} onChange={(e) => setPrevWater(Number(e.target.value))} />
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Present</label>
@@ -905,7 +879,7 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
               </div>
             </div>
           </div>
-
+          
           <div className="space-y-3 pt-4 border-t border-slate-100">
              <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -939,7 +913,7 @@ function BillingModal({ onClose, tenants, units, rates, invoices, onSubmit }: an
             </div>
           </div>
         </form>
-      </div>
+      </div> {/* This closes the modal-box div */}
       <form method="dialog" className="modal-backdrop">
         <button onClick={onClose}>close</button>
       </form>
@@ -1104,7 +1078,7 @@ function EditInvoiceModal({ onClose, invoice, rates, onSubmit }: any) {
             </div>
           </div>
         </form>
-      </div>
+      </div> {/* This closes the modal-box div */}
       <form method="dialog" className="modal-backdrop">
         <button onClick={onClose}>close</button>
       </form>

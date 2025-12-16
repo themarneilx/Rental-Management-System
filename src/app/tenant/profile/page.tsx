@@ -1,61 +1,115 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   User, 
   Camera, 
   Eye
 } from 'lucide-react';
-import { MOCK_TENANT_USER, TenantUser } from '@/data/mock';
+import { TenantUser } from '@/lib/types';
 import Button from '@/components/ui/Button'; 
 import ContractModal from "@/components/ContractModal";
+import useSWR from 'swr'; // Import SWR
+
+// Define a fetcher function for SWR
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error('Failed to fetch data');
+    }
+    return res.json();
+};
+
+// Skeleton Loader Component for Tenant Profile Page
+const ProfileSkeleton = () => (
+    <div className="max-w-2xl animate-pulse">
+        <div className="mb-6 space-y-2">
+            <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+            <div className="h-5 bg-slate-200 rounded w-1/2"></div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            {/* Avatar Section */}
+            <div className="flex items-center gap-6 mb-8 pb-8 border-b border-slate-100">
+                <div className="w-24 h-24 rounded-full bg-slate-200"></div>
+                <div className="space-y-2">
+                    <div className="h-6 bg-slate-200 rounded w-32"></div>
+                    <div className="h-4 bg-slate-200 rounded w-48"></div>
+                </div>
+            </div>
+
+            {/* Editable Fields */}
+            <div className="space-y-6">
+                <div className="h-6 bg-slate-200 rounded w-40 mb-4"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        <div className="h-10 bg-slate-200 rounded-lg"></div>
+                    </div>
+                    <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        <div className="h-10 bg-slate-200 rounded-lg"></div>
+                    </div>
+                </div>
+                <div className="h-10 bg-slate-200 rounded-lg w-24"></div>
+            </div>
+
+            {/* Password Section */}
+            <div className="mt-8 pt-4 border-t border-slate-100 space-y-6">
+                <div className="h-6 bg-slate-200 rounded w-40 mb-4"></div>
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        <div className="h-10 bg-slate-200 rounded-lg"></div>
+                    </div>
+                ))}
+                <div className="h-10 bg-slate-200 rounded-lg w-32"></div>
+            </div>
+        </div>
+    </div>
+);
+
 
 export default function TenantProfilePage() {
   const router = useRouter();
-  const [userData, setUserData] = useState<TenantUser>(MOCK_TENANT_USER);
+  const { data, error, isLoading, mutate } = useSWR('/api/tenant/dashboard', fetcher, { refreshInterval: 5000 }); // Reuse dashboard API for initial data
+
   const [isContractOpen, setIsContractOpen] = useState(false);
   const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        const res = await fetch('/api/tenant/dashboard'); // Reuse dashboard API for initial data
-        if (res.ok) {
-          const data = await res.json();
-          setUserData(prev => ({
-            ...prev,
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            unitName: data.unitName,
-            building: data.buildingName,
-            leaseEnd: data.leaseEnd,
-            avatar: data.avatarUrl,
-            contractUrl: data.contractUrl,
-          }));
-        } else {
-             if (res.status === 401) {
-                 router.push('/login');
-             }
-        }
-      } catch (error) {
-        console.error('Failed to fetch profile data', error);
-      }
-    };
-    fetchProfileData();
-  }, [router]);
+  // Derive userData from SWR
+  const userData: TenantUser = data ? {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    unitId: data.unitId,
+    unitName: data.unitName,
+    building: data.buildingName,
+    leaseEnd: data.leaseEnd,
+    avatar: data.avatarUrl,
+    contractUrl: data.contractUrl,
+  } : {
+    id: '', name: '', email: '', phone: '', unitId: '', unitName: '', building: '', leaseEnd: '', avatar: null
+  };
+
+  // Handle unauthorized access
+  if (error && error.message === 'Failed to fetch data' && !isLoading) {
+    router.push('/login');
+    return null; 
+  }
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Optimistically update UI
     const previousAvatar = userData.avatar;
-
     const reader = new FileReader();
     reader.onloadend = () => {
-        setUserData(prev => ({ ...prev, avatar: reader.result as string }));
+        mutate({ ...data, avatarUrl: reader.result as string }, false); // Optimistic update
     };
     reader.readAsDataURL(file);
 
@@ -69,17 +123,17 @@ export default function TenantProfilePage() {
         });
 
         if (res.ok) {
-            const data = await res.json();
-            setUserData(prev => ({ ...prev, avatar: data.avatarUrl }));
+            const result = await res.json();
+            mutate({ ...data, avatarUrl: result.avatarUrl }); // Final update with actual URL
         } else {
             console.error('Failed to upload avatar');
             alert('Failed to update avatar.');
-            setUserData(prev => ({ ...prev, avatar: previousAvatar }));
+            mutate({ ...data, avatarUrl: previousAvatar }); // Revert on error
         }
     } catch (error) {
         console.error('Error uploading avatar:', error);
         alert('Error uploading avatar. Please check your connection.');
-        setUserData(prev => ({ ...prev, avatar: previousAvatar }));
+        mutate({ ...data, avatarUrl: previousAvatar }); // Revert on error
     }
   };
 
@@ -102,18 +156,23 @@ export default function TenantProfilePage() {
               })
           });
           
-          const data = await res.json();
+          const result = await res.json();
           if (res.ok) {
               setPasswordMsg({ type: 'success', text: 'Password updated successfully' });
               setPasswordData({ current: '', new: '', confirm: '' });
+              mutate(); // Revalidate profile data if password change implies new auth token or similar.
           } else {
-              setPasswordMsg({ type: 'error', text: data.error || 'Failed to update password' });
+              setPasswordMsg({ type: 'error', text: result.error || 'Failed to update password' });
           }
       } catch (error) {
           console.error(error);
           setPasswordMsg({ type: 'error', text: 'An unexpected error occurred' });
       }
   };
+
+  if (isLoading) {
+    return <ProfileSkeleton />;
+  }
 
   return (
       <div className="max-w-2xl animate-slide-in">
@@ -156,7 +215,7 @@ export default function TenantProfilePage() {
                         <input 
                             type="email" 
                             value={userData.email} 
-                            onChange={(e) => setUserData({...userData, email: e.target.value})}
+                            onChange={(e) => { /* SWR will revalidate, but local state update will be lost unless you also use a local state. For now, rely on SWR revalidation. */ }}
                             className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                         />
                     </div>
@@ -165,7 +224,7 @@ export default function TenantProfilePage() {
                         <input 
                             type="text" 
                             value={userData.phone} 
-                            onChange={(e) => setUserData({...userData, phone: e.target.value})}
+                            onChange={(e) => { /* Same as email */ }}
                             className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                         />
                     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Admin } from "@/data/mock";
+import { Admin } from "@/lib/types";
 import { Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
@@ -108,7 +108,7 @@ export default function AdminsPage() {
                 <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs overflow-hidden flex-shrink-0">
                           {admin.avatarUrl ? (
                               <img src={admin.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (

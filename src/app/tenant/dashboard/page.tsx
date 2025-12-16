@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Building2, 
@@ -12,56 +12,95 @@ import {
   FileText, 
   Clock
 } from 'lucide-react';
-import { MOCK_TENANT_USER, TenantUser, TenantInvoice } from '@/data/mock';
+import { TenantUser, TenantInvoice } from '@/lib/types';
 import Badge from '@/components/ui/StatusBadge';
 import Button from '@/components/ui/Button'; 
 import PaymentModal from '@/components/tenant/PaymentModal';
 import { formatDateMonth } from '@/lib/utils';
+import useSWR from 'swr'; // Import SWR
+
+// Define a fetcher function for SWR
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error('Failed to fetch data');
+    }
+    return res.json();
+};
+
+// Skeleton Loader Component for Tenant Dashboard
+const DashboardSkeleton = () => (
+    <div className="space-y-6 animate-pulse">
+        <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+        <div className="h-5 bg-slate-200 rounded w-1/2"></div>
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="h-40 bg-slate-200 rounded-2xl"></div>
+            <div className="h-40 bg-slate-200 rounded-2xl"></div>
+            <div className="h-40 bg-slate-200 rounded-2xl"></div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
+            <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-slate-200"></div>
+                <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                </div>
+            </div>
+            <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-slate-200"></div>
+                <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
 
 export default function TenantDashboardPage() {
   const router = useRouter();
-  const [userData, setUserData] = useState<TenantUser>(MOCK_TENANT_USER);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]); // Changed type to any[] or specific interface
-  const [totalDue, setTotalDue] = useState(0);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [hasPendingPayment, setHasPendingPayment] = useState(false); 
+  const { data, error, isLoading } = useSWR('/api/tenant/dashboard', fetcher, { refreshInterval: 5000 });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const res = await fetch('/api/tenant/dashboard');
-        if (res.ok) {
-          const data = await res.json();
-          setUserData(prev => ({
-            ...prev,
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            unitName: data.unitName,
-            building: data.buildingName,
-            leaseEnd: data.leaseEnd,
-            avatar: data.avatarUrl,
-            contractUrl: data.contractUrl,
-          }));
-          setRecentActivity(data.recentActivity);
-          setTotalDue(data.totalDue);
-          setHasPendingPayment(data.hasPendingPayment);
-        } else {
-             if (res.status === 401) {
-                 router.push('/login');
-             }
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard data', error);
-      }
-    };
-    fetchDashboardData();
-  }, [router]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const userData: TenantUser = data ? {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    unitId: data.unitId,
+    unitName: data.unitName,
+    building: data.buildingName,
+    leaseEnd: data.leaseEnd,
+    avatar: data.avatarUrl,
+    contractUrl: data.contractUrl,
+  } : {
+    id: '', name: '', email: '', phone: '', unitId: '', unitName: '', building: '', leaseEnd: '', avatar: null
+  };
+  const recentActivity = data?.recentActivity || [];
+  const totalDue = data?.totalDue || 0;
+  const hasPendingPayment = data?.hasPendingPayment || false;
+
+  // Handle unauthorized access
+  if (error && error.message === 'Failed to fetch data' && !isLoading) {
+    router.push('/login');
+    return null; 
+  }
 
   const handlePaymentSuccess = () => {
-      setHasPendingPayment(true);
-      // Ideally re-fetch
+      // SWR will revalidate automatically due to refreshInterval
+      // No need to manually setHasPendingPayment(true) here
   };
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-slide-in">
@@ -142,7 +181,7 @@ export default function TenantDashboardPage() {
             </Button>
             </div>
             <div className="space-y-4">
-            {recentActivity.map((item) => (
+            {recentActivity.map((item: any) => ( // Cast item to any for now
                 <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-center gap-4">
                     <div className={`p-2 bg-white rounded-lg border border-slate-200 ${item.type === 'PAYMENT' ? 'text-emerald-600' : 'text-slate-500'}`}>

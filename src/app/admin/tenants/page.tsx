@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tenant, Unit } from "@/data/mock";
+import { Tenant, Unit } from "@/lib/types";
 import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
@@ -276,7 +276,7 @@ export default function TenantsPage() {
                   <tr key={tenant.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs overflow-hidden flex-shrink-0">
                           {tenant.avatarUrl ? (
                              <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (
@@ -554,7 +554,7 @@ function ViewTenantModal({ onClose, tenant, unit }: { onClose: () => void, tenan
                 <div className="p-6 space-y-6">
                     <div className="flex items-start gap-3 p-3 border border-slate-100 rounded-lg">
                         <div 
-                          className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                          className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden flex-shrink-0 ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                           onClick={() => tenant.avatarUrl && setIsAvatarOpen(true)}
                         >
                             {tenant.avatarUrl ? (

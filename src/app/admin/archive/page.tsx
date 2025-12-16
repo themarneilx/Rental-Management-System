@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tenant } from "@/data/mock";
+import { Tenant } from "@/lib/types";
 import { Search, RotateCcw } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
