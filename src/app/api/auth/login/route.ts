@@ -37,6 +37,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    if (role === 'tenant' && 'status' in user && user.status === 'Archived') {
+        return NextResponse.json({ error: 'This account has been disabled.' }, { status: 403 });
+    }
+
     // Create JWT
     const payload: any = { 
       sub: user.id, 
