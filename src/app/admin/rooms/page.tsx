@@ -6,6 +6,7 @@ import { Plus, Search, Eye, Pencil, Save, DoorOpen, Users, X, ArrowUpDown, Arrow
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
+import ContractModal from "@/components/ContractModal";
 
 export default function RoomsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
@@ -52,7 +53,8 @@ export default function RoomsPage() {
                     unitId: t.roomId,
                     status: t.status,
                     leaseEnd: t.leaseEnd?.split('T')[0] || '',
-                    deposit: Number(t.deposit)
+                    deposit: Number(t.deposit),
+                    avatarUrl: t.avatarUrl
                 }));
 
                 setUnits(mappedUnits);
@@ -321,8 +323,12 @@ export default function RoomsPage() {
                     <td className="px-6 py-4">
                        {currentTenant ? (
                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                                {currentTenant.name.charAt(0)}
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold overflow-hidden">
+                                {currentTenant.avatarUrl ? (
+                                    <img src={currentTenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    currentTenant.name.charAt(0)
+                                )}
                             </div>
                             <span className="text-blue-600 font-medium">{currentTenant.name}</span>
                          </div>
@@ -674,6 +680,8 @@ function EditRoomModal({ onClose, room, tenant, onSubmit }: { onClose: () => voi
 }
 
 function ViewRoomModal({ onClose, room, tenant }: { onClose: () => void, room: Unit, tenant: Tenant | null }) {
+    const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
     return (
     <ModalPortal>
         <div className="modal modal-open z-[60]">
@@ -706,8 +714,15 @@ function ViewRoomModal({ onClose, room, tenant }: { onClose: () => void, room: U
                          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Occupant Information</h4>
                          {tenant ? (
                              <div className="flex items-start gap-3 p-3 border border-slate-100 rounded-lg">
-                                 <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold">
-                                     {tenant.name.charAt(0)}
+                                 <div 
+                                    className={`w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-blue-600 font-bold overflow-hidden ${tenant.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                                    onClick={() => tenant.avatarUrl && setIsAvatarOpen(true)}
+                                 >
+                                     {tenant.avatarUrl ? (
+                                         <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                     ) : (
+                                         tenant.name.charAt(0)
+                                     )}
                                  </div>
                                  <div>
                                      <p className="font-bold text-slate-900">{tenant.name}</p>
@@ -727,6 +742,11 @@ function ViewRoomModal({ onClose, room, tenant }: { onClose: () => void, room: U
                     </div>
                 </div>
             </div>
+            
+            {isAvatarOpen && tenant?.avatarUrl && (
+                <ContractModal url={tenant.avatarUrl} onClose={() => setIsAvatarOpen(false)} />
+            )}
+
             <form method="dialog" className="modal-backdrop">
                 <button onClick={onClose}>close</button>
             </form>
