@@ -5,11 +5,16 @@ import { Tenant } from "@/data/mock";
 import { Search, RotateCcw } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
+import UnarchiveModal from "@/components/admin/UnarchiveModal";
 
 export default function ArchivePage() {
   const [archivedTenants, setArchivedTenants] = useState<Tenant[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [isUnarchiveModalOpen, setIsUnarchiveModalOpen] = useState(false);
+  const [tenantToUnarchive, setTenantToUnarchive] = useState<Tenant | null>(null);
 
   useEffect(() => {
     async function fetchArchives() {
@@ -46,16 +51,21 @@ export default function ArchivePage() {
     fetchArchives();
   }, []);
 
-  const handleUnarchive = async (tenant: Tenant) => {
-      if (!confirm(`Are you sure you want to restore ${tenant.name} to Active status? They will need to be assigned a unit manually.`)) return;
+  const handleUnarchiveClick = (tenant: Tenant) => {
+      setTenantToUnarchive(tenant);
+      setIsUnarchiveModalOpen(true);
+  };
+
+  const confirmUnarchive = async () => {
+      if (!tenantToUnarchive) return;
 
       try {
-          const res = await fetch(`/api/tenants/${tenant.id}/unarchive`, {
+          const res = await fetch(`/api/tenants/${tenantToUnarchive.id}/unarchive`, {
               method: 'PUT'
           });
 
           if (res.ok) {
-              setArchivedTenants(prev => prev.filter(t => t.id !== tenant.id));
+              setArchivedTenants(prev => prev.filter(t => t.id !== tenantToUnarchive.id));
           } else {
               alert("Failed to unarchive tenant");
           }
@@ -130,7 +140,7 @@ export default function ArchivePage() {
                     <td className="px-6 py-4"><Badge status="Archived" /></td>
                     <td className="px-6 py-4 text-right">
                         <button 
-                            onClick={() => handleUnarchive(tenant)}
+                            onClick={() => handleUnarchiveClick(tenant)}
                             className="flex items-center gap-1.5 ml-auto px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
                             title="Restore to Active"
                         >
@@ -145,6 +155,14 @@ export default function ArchivePage() {
           </table>
         </div>
       </Card>
+
+      {isUnarchiveModalOpen && tenantToUnarchive && (
+          <UnarchiveModal 
+             tenantName={tenantToUnarchive.name}
+             onClose={() => setIsUnarchiveModalOpen(false)}
+             onConfirm={confirmUnarchive}
+          />
+      )}
     </div>
   );
 }
