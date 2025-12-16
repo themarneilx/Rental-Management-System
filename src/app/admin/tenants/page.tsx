@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
 import ContractModal from "@/components/ContractModal";
+import ResetPasswordModal from "@/components/admin/ResetPasswordModal"; // Import the new modal
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -632,6 +633,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
     const [contractFile, setContractFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(tenant.avatarUrl || null);
     const [saving, setSaving] = useState(false);
+    const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); // New state
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -669,25 +671,8 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
         setSaving(false);
     };
 
-    const handleResetPassword = async () => {
-        if (!confirm("Are you sure you want to reset the password for this tenant? This will generate a new random password.")) return;
-        
-        try {
-            const res = await fetch(`/api/tenants/${tenant.id}/reset-password`, {
-                method: 'PUT'
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                alert(`Password Reset Successful!\n\nNew Password: ${data.password}\n\nPlease copy this password and share it with the tenant.`);
-            } else {
-                const err = await res.json();
-                alert(err.error || "Failed to reset password");
-            }
-        } catch (error) {
-            console.error("Error resetting password:", error);
-            alert("Error resetting password");
-        }
+    const openResetPasswordModal = () => {
+        setIsResetPasswordModalOpen(true);
     };
 
     return (
@@ -762,7 +747,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                     </div>
 
                     <div className="pt-4 flex justify-between items-center">
-                        <button type="button" onClick={handleResetPassword} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+                        <button type="button" onClick={openResetPasswordModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
                             Reset Password
                         </button>
                         <div className="flex gap-3">
@@ -778,6 +763,14 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                 <button onClick={onClose}>close</button>
             </form>
         </div>
+
+        {isResetPasswordModalOpen && (
+            <ResetPasswordModal 
+                tenantId={tenant.id}
+                tenantName={tenant.name}
+                onClose={() => setIsResetPasswordModalOpen(false)}
+            />
+        )}
     </ModalPortal>
     );
 }
