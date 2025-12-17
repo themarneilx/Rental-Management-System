@@ -12,11 +12,35 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setEmailError('');
+    setPasswordError('');
+
+    let isValid = true;
+
+    if (!email) {
+      setEmailError('Email is required!');
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+       setEmailError('Please enter a valid email address.');
+       isValid = false;
+    }
+
+    if (!password) {
+      setPasswordError('Password is required!');
+      isValid = false;
+    }
+
+    if (!isValid) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -30,7 +54,7 @@ export default function LoginPage() {
         router.refresh();
       } else {
         const data = await res.json();
-        setError(data.error || 'Login failed');
+        setError(data.error || 'Invalid email or password. Please try again.');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -62,17 +86,18 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-900"
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-900 ${emailError ? 'border-red-500' : 'border-slate-200'}`}
               placeholder="name@example.com"
               required
             />
+            {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
           </div>
           <div>
             <div className="flex justify-between items-center mb-1.5">
@@ -84,7 +109,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-900 pr-10"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-slate-900 pr-10 ${passwordError ? 'border-red-500' : 'border-slate-200'}`}
                 placeholder="••••••••"
                 required
               />
@@ -96,6 +121,7 @@ export default function LoginPage() {
                 {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
               </button>
             </div>
+            {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
           </div>
           
           <Button type="submit" className="w-full py-3 mt-2 text-base" disabled={loading}>
