@@ -47,6 +47,7 @@ export async function GET(request: Request) {
             userData.email = admin.email;
             userData.role = admin.role; // Update role from DB in case it changed
             userData.avatarUrl = admin.avatarUrl;
+            userData.mustChangePassword = admin.mustChangePassword;
         }
     }
     

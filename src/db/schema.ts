@@ -10,6 +10,7 @@ export const admins = pgTable("admins", {
   password: text("password").notNull(), // Hashed with bcrypt
   role: text("role").notNull(), // 'Super Admin', 'Property Manager', 'Billing Admin'
   status: text("status").default("Active").notNull(),
+  mustChangePassword: boolean("must_change_password").default(false).notNull(),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

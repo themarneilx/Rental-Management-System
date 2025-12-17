@@ -51,6 +51,8 @@ export async function POST(request: Request) {
 
     if (role === 'tenant' && 'mustChangePassword' in user) {
       payload.mustChangePassword = user.mustChangePassword;
+    } else if (type === 'admin' && user && 'mustChangePassword' in user) {
+       payload.mustChangePassword = user.mustChangePassword;
     }
 
     const token = await new SignJWT(payload)

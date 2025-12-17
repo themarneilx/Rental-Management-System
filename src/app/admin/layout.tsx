@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import ForceChangePasswordModal from "@/components/tenant/ForceChangePasswordModal";
 
 export default function AdminLayout({
   children,
@@ -10,7 +11,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; avatarUrl?: string | null } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; avatarUrl?: string | null; mustChangePassword?: boolean } | null>(null);
   const [initials, setInitials] = useState<string>('AU'); // Default to Admin User
 
   useEffect(() => {
@@ -45,6 +46,14 @@ export default function AdminLayout({
         </main>
       </div>
       
+      {/* Force Change Password Modal */}
+      {user?.mustChangePassword && (
+        <ForceChangePasswordModal 
+            apiEndpoint="/api/admin/password"
+            onSuccess={() => setUser(prev => prev ? ({ ...prev, mustChangePassword: false }) : null)} 
+        />
+      )}
+
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (
         <div 

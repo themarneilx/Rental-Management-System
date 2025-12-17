@@ -4,7 +4,7 @@ import { useState } from "react";
 import ModalPortal from "@/components/ui/ModalPortal";
 import { Lock } from "lucide-react";
 
-export default function ForceChangePasswordModal({ onSuccess }: { onSuccess: () => void }) {
+export default function ForceChangePasswordModal({ onSuccess, apiEndpoint = "/api/tenant/password" }: { onSuccess: () => void, apiEndpoint?: string }) {
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -30,7 +30,7 @@ export default function ForceChangePasswordModal({ onSuccess }: { onSuccess: () 
     setLoading(true);
 
     try {
-      const res = await fetch("/api/tenant/password", {
+      const res = await fetch(apiEndpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
