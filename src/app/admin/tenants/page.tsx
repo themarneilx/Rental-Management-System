@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Tenant, Unit } from "@/lib/types";
-import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera } from "lucide-react";
+import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera, ArrowUpDown, Filter } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
@@ -15,6 +15,11 @@ export default function TenantsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddTenantModalOpen, setIsAddTenantModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Sorting and Filtering
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [buildingFilter, setBuildingFilter] = useState<string>('All Buildings');
+  const [availableBuildings, setAvailableBuildings] = useState<string[]>([]);
 
   // Modals for View/Edit
   const [isViewTenantModalOpen, setIsViewTenantModalOpen] = useState(false);
@@ -70,6 +75,12 @@ export default function TenantsPage() {
 
           setTenants(mappedTenants);
           setUnits(mappedUnits);
+          
+          // Extract unique buildings
+          const buildings = Array.from(new Set(mappedUnits.map(u => u.building))).sort((a, b) => 
+            a.localeCompare(b, undefined, { numeric: true })
+          );
+          setAvailableBuildings(buildings);
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -80,11 +91,49 @@ export default function TenantsPage() {
     fetchData();
   }, []);
 
-  const activeTenants = tenants.filter(t => t.status === 'Active');
-  const filteredTenants = activeTenants.filter(t => 
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const processTenants = () => {
+    let result = tenants.filter(t => t.status === 'Active');
+
+    // Filter by Building
+    if (buildingFilter !== 'All Buildings') {
+      result = result.filter(t => {
+        const unit = units.find(u => u.id === t.unitId);
+        return unit?.building === buildingFilter;
+      });
+    }
+
+    // Filter by Search Term
+    result = result.filter(t => 
+      t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Sort
+    result.sort((a, b) => {
+      const unitA = units.find(u => u.id === a.unitId);
+      const unitB = units.find(u => u.id === b.unitId);
+
+      // Handle cases where unit might be missing (though unlikely for Active tenants)
+      const buildingA = unitA?.building || '';
+      const buildingB = unitB?.building || '';
+      const nameA = unitA?.name || '';
+      const nameB = unitB?.name || '';
+
+      // Primary Sort: Building
+      const buildingCompare = buildingA.localeCompare(buildingB, undefined, { numeric: true });
+      if (buildingCompare !== 0) {
+        return sortOrder === 'asc' ? buildingCompare : -buildingCompare;
+      }
+
+      // Secondary Sort: Unit Name
+      const unitCompare = nameA.localeCompare(nameB, undefined, { numeric: true });
+      return sortOrder === 'asc' ? unitCompare : -unitCompare;
+    });
+
+    return result;
+  };
+
+  const processedTenants = processTenants();
 
   const handleAddTenant = async (formData: FormData) => {
     try {
@@ -244,16 +293,31 @@ export default function TenantsPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search tenants..." 
-              className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row gap-4 justify-between">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Search tenants..." 
+                className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="relative min-w-[200px]">
+                <select 
+                    className="w-full pl-3 pr-10 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
+                    value={buildingFilter}
+                    onChange={(e) => setBuildingFilter(e.target.value)}
+                >
+                    <option value="All Buildings">All Buildings</option>
+                    {availableBuildings.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                    ))}
+                </select>
+                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -261,7 +325,15 @@ export default function TenantsPage() {
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3 font-semibold">Tenant Details</th>
-                <th className="px-6 py-3 font-semibold">Unit Info</th>
+                <th 
+                  className="px-6 py-3 font-semibold cursor-pointer hover:bg-slate-100 transition-colors group select-none"
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                >
+                    <div className="flex items-center gap-1">
+                        Unit Info
+                        <ArrowUpDown className={`w-3 h-3 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''} ${sortOrder ? 'opacity-100' : 'opacity-40'}`} />
+                    </div>
+                </th>
                 <th className="px-6 py-3 font-semibold">Contact</th>
                 <th className="px-6 py-3 font-semibold">Security Deposit</th>
                 <th className="px-6 py-3 font-semibold">Lease End</th>
@@ -270,75 +342,86 @@ export default function TenantsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTenants.map((tenant) => {
-                const tenantUnit = units.find(u => u.id === tenant.unitId);
-                return (
-                  <tr key={tenant.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs overflow-hidden flex-shrink-0">
-                          {tenant.avatarUrl ? (
-                             <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                          ) : (
-                             tenant.name.substring(0, 2).toUpperCase()
-                          )}
+              {processedTenants.length > 0 ? (
+                processedTenants.map((tenant) => {
+                  const tenantUnit = units.find(u => u.id === tenant.unitId);
+                  return (
+                    <tr key={tenant.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs overflow-hidden flex-shrink-0">
+                            {tenant.avatarUrl ? (
+                               <img src={tenant.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                               tenant.name.substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">{tenant.name}</div>
+                            <div className="text-xs text-slate-500">{tenant.id}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-slate-900">{tenant.name}</div>
-                          <div className="text-xs text-slate-500">{tenant.id}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {tenant.status === 'Archived' && tenant.previousRoom ? (
+                           <div>
+                              <div className="text-sm font-medium text-slate-900">{tenant.previousRoom.name} <span className="text-xs text-slate-400">(Prev.)</span></div>
+                              <div className="text-xs text-slate-500">{tenant.previousRoom.building}</div>
+                           </div>
+                        ) : tenantUnit ? (
+                           <div>
+                              <div className="text-sm font-medium text-slate-900">{tenantUnit.name}</div>
+                              <div className="text-xs text-slate-500">{tenantUnit.building}</div>
+                           </div>
+                        ) : (
+                          <span className="text-slate-400 italic">No Unit</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        <div className="text-xs">{tenant.email}</div>
+                        <div className="text-xs">{tenant.phone}</div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-600">₱{tenant.deposit.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-slate-600 font-mono text-xs">{tenant.leaseEnd}</td>
+                      <td className="px-6 py-4"><Badge status={tenant.status} /></td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => openViewTenant(tenant)}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                              title="View Details"
+                            >
+                                <Eye className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => openEditTenant(tenant)}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                              title="Edit Tenant"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleArchiveClick(tenant)}
+                              className="text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Move to Archive"
+                            >
+                              <LogOut className="w-4 h-4" />
+                            </button>
                         </div>
-                      </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                 <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                       <div className="flex flex-col items-center justify-center gap-2">
+                          <Search className="w-8 h-8 text-slate-300" />
+                          <p>No tenants found matching your criteria.</p>
+                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      {tenant.status === 'Archived' && tenant.previousRoom ? (
-                         <div>
-                            <div className="text-sm font-medium text-slate-900">{tenant.previousRoom.name} <span className="text-xs text-slate-400">(Prev.)</span></div>
-                            <div className="text-xs text-slate-500">{tenant.previousRoom.building}</div>
-                         </div>
-                      ) : tenantUnit ? (
-                         <div>
-                            <div className="text-sm font-medium text-slate-900">{tenantUnit.name}</div>
-                            <div className="text-xs text-slate-500">{tenantUnit.building}</div>
-                         </div>
-                      ) : (
-                        <span className="text-slate-400 italic">No Unit</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      <div className="text-xs">{tenant.email}</div>
-                      <div className="text-xs">{tenant.phone}</div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-slate-600">₱{tenant.deposit.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-slate-600 font-mono text-xs">{tenant.leaseEnd}</td>
-                    <td className="px-6 py-4"><Badge status={tenant.status} /></td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => openViewTenant(tenant)}
-                            className="text-slate-400 hover:text-blue-600 transition-colors"
-                            title="View Details"
-                          >
-                              <Eye className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => openEditTenant(tenant)}
-                            className="text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Edit Tenant"
-                          >
-                              <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleArchiveClick(tenant)}
-                            className="text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Move to Archive"
-                          >
-                            <LogOut className="w-4 h-4" />
-                          </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                 </tr>
+              )}
             </tbody>
           </table>
         </div>
