@@ -183,14 +183,74 @@ export default function RoomsPage() {
     }
   };
 
-  const handleUpdateRoom = (updatedRoom: Unit, updatedTenant: Tenant | null) => {
-    // Optimistic update for now, ideally API call
-    setUnits(prev => prev.map(u => u.id === updatedRoom.id ? updatedRoom : u));
-    if (updatedTenant) {
-        setTenants(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
+  const handleUpdateRoom = async (updatedRoom: Unit, updatedTenant: Tenant | null) => {
+    try {
+        // 1. Update Room
+        const res = await fetch(`/api/rooms/${updatedRoom.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: updatedRoom.name,
+                building: updatedRoom.building,
+                type: updatedRoom.type,
+                rent: updatedRoom.rent,
+                status: updatedRoom.status
+            })
+        });
+
+        if (!res.ok) {
+             const err = await res.json();
+             alert(err.error || 'Failed to update room');
+             return;
+        }
+        
+        const savedRoom = await res.json();
+        
+        // Map back to Unit type
+        const mappedSavedRoom: Unit = {
+            id: savedRoom.id,
+            name: savedRoom.name,
+            building: updatedRoom.building, // The API returns buildingId, we keep the name from input or fetch if needed
+            type: savedRoom.type,
+            rent: Number(savedRoom.rent),
+            status: savedRoom.status
+        };
+
+        setUnits(prev => prev.map(u => u.id === mappedSavedRoom.id ? mappedSavedRoom : u));
+
+        // 2. Update Tenant (if modified) - Keeping this simple/optimistic or implementing basic update if needed
+        // For now, if tenant details changed in this modal, we might need a separate API call.
+        // The current EditRoomModal allows editing tenant details too.
+        if (updatedTenant) {
+             // Ideally: call /api/tenants/${updatedTenant.id}
+             // For this fix, I'll ensure at least the UI reflects it, but primarily I fixed the Rent persistence.
+             // If the user didn't complain about tenant update, I'll leave the optimistic update for tenant or add the call.
+             // Adding the call is safer.
+             const tenantRes = await fetch(`/api/tenants/${updatedTenant.id}`, {
+                 method: 'PUT',
+                 body: (() => {
+                     const fd = new FormData();
+                     fd.append('id', updatedTenant.id);
+                     fd.append('name', updatedTenant.name);
+                     fd.append('email', updatedTenant.email);
+                     fd.append('phone', updatedTenant.phone);
+                     // Add other fields if necessary or available in updatedTenant
+                     return fd;
+                 })()
+             });
+             
+             if (tenantRes.ok) {
+                 const savedTenant = await tenantRes.json();
+                 setTenants(prev => prev.map(t => t.id === savedTenant.id ? { ...t, ...savedTenant, deposit: Number(savedTenant.deposit) } : t));
+             }
+        }
+
+        setIsEditRoomModalOpen(false);
+        setSelectedRoom(null);
+    } catch (error) {
+        console.error("Error updating room:", error);
+        alert("Error updating room");
     }
-    setIsEditRoomModalOpen(false);
-    setSelectedRoom(null);
   };
 
   const openEditRoom = (room: Unit) => {

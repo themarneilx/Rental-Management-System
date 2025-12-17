@@ -1,8 +1,62 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { rooms } from '@/db/schema';
+import { rooms, buildings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyAdmin, unauthorized } from '@/lib/auth';
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await verifyAdmin();
+  if (!admin) return unauthorized();
+
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { name, type, rent, status, building } = body;
+
+    // Find or create building if building name is changed/provided
+    let buildingId;
+    if (building) {
+        let buildingRecord = await db.query.buildings.findFirst({
+            where: eq(buildings.name, building)
+        });
+
+        if (!buildingRecord) {
+             const [newBuilding] = await db.insert(buildings).values({ name: building }).returning();
+             buildingRecord = newBuilding;
+        }
+        buildingId = buildingRecord.id;
+    }
+
+    // Construct update object
+    const updateData: any = {
+        name,
+        type,
+        rent: rent.toString(),
+        status,
+    };
+    
+    if (buildingId) {
+        updateData.buildingId = buildingId;
+    }
+
+    const [updatedRoom] = await db.update(rooms)
+      .set(updateData)
+      .where(eq(rooms.id, id))
+      .returning();
+
+    if (!updatedRoom) {
+        return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(updatedRoom);
+  } catch (error) {
+    console.error('Error updating room:', error);
+    return NextResponse.json({ error: 'Failed to update room' }, { status: 500 });
+  }
+}
 
 export async function DELETE(
   request: Request,
