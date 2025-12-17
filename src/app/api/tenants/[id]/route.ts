@@ -24,21 +24,27 @@ export async function PUT(
     const unitId = formData.get('unitId') as string; // might be "null" or ""
     const file = formData.get('avatar') as File | null;
     const contractFile = formData.get('contract') as File | null;
+    const deleteAvatar = formData.get('deleteAvatar') === 'true';
+    const deleteContract = formData.get('deleteContract') === 'true';
 
-    let avatarUrl: string | undefined;
+    let avatarUrl: string | undefined | null;
     if (file && file.size > 0) {
         if (!file.type.startsWith('image/')) {
             return NextResponse.json({ error: 'Avatar must be an image' }, { status: 400 });
         }
         avatarUrl = await uploadToImgBB(file);
+    } else if (deleteAvatar) {
+        avatarUrl = null;
     }
 
-    let contractUrl: string | undefined;
+    let contractUrl: string | undefined | null;
     if (contractFile && contractFile.size > 0) {
         if (!contractFile.type.startsWith('image/')) {
             return NextResponse.json({ error: 'Contract must be an image' }, { status: 400 });
         }
         contractUrl = await uploadToImgBB(contractFile);
+    } else if (deleteContract) {
+        contractUrl = null;
     }
 
     const currentTenant = await db.query.tenants.findFirst({
@@ -56,10 +62,10 @@ export async function PUT(
             deposit: deposit,
         };
 
-        if (avatarUrl) {
+        if (avatarUrl !== undefined) {
             updateData.avatarUrl = avatarUrl;
         }
-        if (contractUrl) {
+        if (contractUrl !== undefined) {
             updateData.contractUrl = contractUrl;
         }
 

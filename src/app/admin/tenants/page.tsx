@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Tenant, Unit } from "@/lib/types";
-import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Plus, LogOut, X, Eye, Pencil, RefreshCw, AlertTriangle, Camera, ArrowUpDown, Filter, Trash2 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/StatusBadge";
 import ModalPortal from "@/components/ui/ModalPortal";
@@ -723,6 +723,8 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [contractFile, setContractFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(tenant.avatarUrl || null);
+    const [deleteAvatar, setDeleteAvatar] = useState(false);
+    const [deleteContract, setDeleteContract] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); // New state
 
@@ -731,6 +733,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
         if (file) {
             setAvatarFile(file);
             setPreviewUrl(URL.createObjectURL(file));
+            setDeleteAvatar(false);
         }
     };
 
@@ -738,6 +741,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
         const file = e.target.files?.[0];
         if (file) {
             setContractFile(file);
+            setDeleteContract(false);
         }
     };
 
@@ -752,6 +756,9 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
         data.append('unitId', formData.unitId || '');
         data.append('leaseEnd', formData.leaseEnd);
         data.append('deposit', formData.deposit.toString());
+        data.append('deleteAvatar', deleteAvatar.toString());
+        data.append('deleteContract', deleteContract.toString());
+
         if (avatarFile) {
             data.append('avatar', avatarFile);
         }
@@ -778,16 +785,47 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                     <div className="flex justify-center">
                         <div className="relative group">
                             <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
-                                {previewUrl ? (
+                                {deleteAvatar ? (
+                                    <span className="text-xs text-rose-500 font-bold">Removed</span>
+                                ) : previewUrl ? (
                                     <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
                                     <span className="text-2xl font-bold text-slate-400">{formData.name.charAt(0)}</span>
                                 )}
                             </div>
-                            <label className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-sm">
+                            <label className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-sm z-10">
                                 <Camera className="w-4 h-4" />
                                 <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                             </label>
+                            {/* Remove Avatar Button */}
+                            {(!deleteAvatar && previewUrl) && (
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setDeleteAvatar(true);
+                                        setPreviewUrl(null);
+                                        setAvatarFile(null);
+                                    }}
+                                    className="absolute top-0 right-0 p-1 bg-rose-500 text-white rounded-full hover:bg-rose-600 transition-colors shadow-sm z-20"
+                                    title="Remove Photo"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </button>
+                            )}
+                             {/* Undo Remove Avatar Button */}
+                             {deleteAvatar && (
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setDeleteAvatar(false);
+                                        setPreviewUrl(tenant.avatarUrl || null);
+                                    }}
+                                    className="absolute top-0 right-0 p-1 bg-slate-500 text-white rounded-full hover:bg-slate-600 transition-colors shadow-sm z-20"
+                                    title="Undo Remove"
+                                >
+                                    <RefreshCw className="w-3 h-3" />
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -831,10 +869,54 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                         </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100">
-                         <label className="block text-sm font-medium text-slate-700 mb-1">Attach Contract (Image)</label>
-                         <input type="file" accept="image/*" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleContractChange} />
-                         {contractFile && <p className="text-xs text-emerald-600 mt-1">Selected: {contractFile.name}</p>}
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                         <div className="flex justify-between items-center">
+                            <label className="block text-sm font-medium text-slate-700">Contract (Image)</label>
+                            {/* Contract Actions */}
+                            <div className="flex gap-2">
+                                {deleteContract ? (
+                                     <span className="text-xs text-rose-500 font-bold flex items-center gap-1">
+                                         <AlertTriangle className="w-3 h-3" /> Marked for deletion
+                                     </span>
+                                ) : (
+                                    formData.contractUrl && !contractFile && (
+                                        <a href={formData.contractUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                            <Eye className="w-3 h-3" /> View Current
+                                        </a>
+                                    )
+                                )}
+                            </div>
+                         </div>
+                         
+                         <div className="flex items-center gap-2">
+                            <input type="file" accept="image/*" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleContractChange} />
+                            
+                             {(!deleteContract && (formData.contractUrl || contractFile)) && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        setDeleteContract(true);
+                                        setContractFile(null);
+                                    }}
+                                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                                    title="Remove Contract"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                             )}
+                             
+                             {deleteContract && (
+                                 <button 
+                                    type="button" 
+                                    onClick={() => setDeleteContract(false)}
+                                    className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title="Undo Remove"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                </button>
+                             )}
+                         </div>
+                         {contractFile && <p className="text-xs text-emerald-600 mt-1">New file selected: {contractFile.name}</p>}
                     </div>
 
                     <div className="pt-4 flex justify-between items-center">
