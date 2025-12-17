@@ -463,6 +463,25 @@ export default function TenantsPage() {
   );
 }
 
+function ProgressBar({ progress }: { progress: number }) {
+  if (progress <= 0) return null;
+  
+  return (
+    <div className="w-full mb-4 animate-in fade-in duration-300">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs font-semibold text-blue-600 uppercase">Uploading...</span>
+        <span className="text-xs font-bold text-slate-600">{Math.round(progress)}%</span>
+      </div>
+      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+        <div 
+          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" 
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+}
+
 function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, units: any[], onSubmit: (data: FormData) => Promise<void> }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -477,6 +496,7 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const generatePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -501,6 +521,26 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
         setContractFile(file);
     }
   };
+
+  // Upload Simulation
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading && (avatarFile || contractFile)) {
+      setUploadProgress(0);
+      interval = setInterval(() => {
+        setUploadProgress(prev => {
+           if (prev >= 95) return prev;
+           // Decelerate as it gets closer to 95%
+           const remaining = 95 - prev;
+           const increment = Math.max(1, Math.ceil(remaining * 0.1));
+           return prev + increment;
+        });
+      }, 300);
+    } else {
+      setUploadProgress(0);
+    }
+    return () => clearInterval(interval);
+  }, [loading, avatarFile, contractFile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -606,11 +646,14 @@ function AddTenantModal({ onClose, units, onSubmit }: { onClose: () => void, uni
              {contractFile && <p className="text-xs text-emerald-600 mt-1">Selected: {contractFile.name}</p>}
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
-               {loading ? 'Adding...' : 'Add Tenant'}
-            </button>
+          <div className="pt-4 flex flex-col gap-3">
+            {uploadProgress > 0 && <ProgressBar progress={uploadProgress} />}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+              <button type="submit" disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                 {loading ? 'Adding...' : 'Add Tenant'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -726,6 +769,7 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
     const [deleteAvatar, setDeleteAvatar] = useState(false);
     const [deleteContract, setDeleteContract] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); // New state
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -744,6 +788,25 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
             setDeleteContract(false);
         }
     };
+
+    // Upload Simulation
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (saving && (avatarFile || contractFile)) {
+            setUploadProgress(0);
+            interval = setInterval(() => {
+                setUploadProgress(prev => {
+                    if (prev >= 95) return prev;
+                    const remaining = 95 - prev;
+                    const increment = Math.max(1, Math.ceil(remaining * 0.1));
+                    return prev + increment;
+                });
+            }, 300);
+        } else {
+            setUploadProgress(0);
+        }
+        return () => clearInterval(interval);
+    }, [saving, avatarFile, contractFile]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -919,15 +982,18 @@ function EditTenantModal({ onClose, tenant, units, onSubmit }: { onClose: () => 
                          {contractFile && <p className="text-xs text-emerald-600 mt-1">New file selected: {contractFile.name}</p>}
                     </div>
 
-                    <div className="pt-4 flex justify-between items-center">
-                        <button type="button" onClick={openResetPasswordModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
-                            Reset Password
-                        </button>
-                        <div className="flex gap-3">
-                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
-                            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
-                                {saving ? 'Saving...' : 'Save Changes'}
+                    <div className="pt-4 flex flex-col gap-3">
+                        {uploadProgress > 0 && <ProgressBar progress={uploadProgress} />}
+                        <div className="flex justify-between items-center">
+                            <button type="button" onClick={openResetPasswordModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+                                Reset Password
                             </button>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+                                <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
