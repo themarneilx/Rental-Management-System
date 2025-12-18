@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
         const mailOptions = {
           from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-          to: 'marneilx@proton.me',
+          to: process.env.ADMIN_EMAIL,
           subject: `New Payment: ${tenantName} - Unit ${unitNumber}`,
           html: htmlContent,
           text: `New payment proof submitted by ${tenantName} (Unit ${unitNumber}, Building ${buildingName}). Rent: ${rentPeriod}. Utility: ${utilityPeriod}. Amount: ₱${amountFormatted}. Message: "${message}". Receipt URL: ${receiptUrl}`, // Fallback

@@ -6,7 +6,7 @@ import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'default_secret');
+import { JWT_SECRET as SECRET } from '@/lib/auth';
 
 export async function PUT(request: Request) {
   const cookieStore = await cookies();

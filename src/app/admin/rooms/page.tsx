@@ -141,8 +141,8 @@ export default function RoomsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...newTenantData,
-                    roomId: createdRoom.id,
-                    password: 'defaultPassword123' // Default password
+                    roomId: createdRoom.id
+                    // password handled by server default
                 })
             });
             if (tenantRes.ok) {

@@ -55,8 +55,15 @@ export async function POST(request: Request) {
     
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    let password = formData.get('password') as string;
     const phone = formData.get('phone') as string;
+
+    if (!password) {
+        if (!process.env.DEFAULT_TENANT_PASSWORD) {
+             return NextResponse.json({ error: 'Default password not configured' }, { status: 500 });
+        }
+        password = process.env.DEFAULT_TENANT_PASSWORD;
+    }
     const deposit = formData.get('deposit') as string;
     const leaseEnd = formData.get('leaseEnd') as string;
     const roomId = formData.get('roomId') as string;

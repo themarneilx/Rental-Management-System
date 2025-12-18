@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'default_secret');
+const secretKey = process.env.AUTH_SECRET;
+if (!secretKey) throw new Error('AUTH_SECRET is not defined');
+const SECRET = new TextEncoder().encode(secretKey);
 
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;

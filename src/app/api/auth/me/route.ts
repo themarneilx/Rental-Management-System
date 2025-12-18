@@ -5,7 +5,7 @@ import { db } from '@/db';
 import { admins, tenants } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'default_secret');
+import { JWT_SECRET as SECRET } from '@/lib/auth';
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();

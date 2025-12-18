@@ -12,8 +12,8 @@ export async function POST(request: Request) {
     // Configure transporter
     // In production, these should be environment variables
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
       secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
@@ -21,7 +21,8 @@ export async function POST(request: Request) {
       },
     });
 
-    const adminEmail = process.env.ADMIN_EMAIL || 'marneilx@proton.me'; // Default per context
+    const adminEmail = process.env.ADMIN_EMAIL; // Admin email from env
+    if (!adminEmail) throw new Error('ADMIN_EMAIL is not defined');
 
     const subject = type === 'account_recovery' 
       ? `[Account Recovery] Request from ${name}` 
