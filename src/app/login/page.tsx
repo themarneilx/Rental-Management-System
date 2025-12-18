@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { Eye, EyeOff } from 'lucide-react';
+import ContactManagementModal from '@/components/ContactManagementModal';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +104,7 @@ export default function LoginPage() {
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-sm font-semibold text-slate-700">Password</label>
-              <a href="#" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Forgot password?</a>
+              {/* Forgot password link removed */}
             </div>
             <div className="relative">
               <input 
@@ -131,10 +133,21 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-xs text-slate-400">
-            Having trouble logging in? <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Contact Management</a>
+            Having trouble logging in?{' '}
+            <button 
+              onClick={() => setIsContactModalOpen(true)}
+              className="text-blue-600 hover:text-blue-700 font-medium hover:underline focus:outline-none"
+            >
+              Contact Management
+            </button>
           </p>
         </div>
       </div>
+
+      <ContactManagementModal 
+        isOpen={isContactModalOpen} 
+        onClose={() => setIsContactModalOpen(false)} 
+      />
     </div>
   );
 }
