@@ -27,14 +27,12 @@ export async function POST(request: Request) {
       role = 'tenant';
     }
 
-    if (!user || !user.password) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
+      return NextResponse.json({ error: 'Invalid email or password. Please try again.' }, { status: 401 });
 
     const isValid = await bcrypt.compare(password, user.password);
 
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid email or password. Please try again.' }, { status: 401 });
     }
 
     if (role === 'tenant' && 'status' in user && user.status === 'Archived') {
