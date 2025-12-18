@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       role = 'tenant';
     }
 
+    if (!user) {
       return NextResponse.json({ error: 'Invalid email or password. Please try again.' }, { status: 401 });
+    }
 
     const isValid = await bcrypt.compare(password, user.password);
 
