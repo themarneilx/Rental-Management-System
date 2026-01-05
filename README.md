@@ -2,7 +2,7 @@
 
 A modern, full-stack rental management solution designed for efficient property administration and tenant convenience. This system features a robust Admin Dashboard for property managers and a dedicated Tenant Portal for residents.
 
-## **🚀 Overview**
+## ** Overview**
 
 The **Rental-Management-System** automates the complexities of rental management. It handles split-period billing, utility calculations (water/electricity), room occupancy tracking, and tenant archives. It uses a custom billing engine to ensure accurate financial records, accounting for previous balances, penalties, and credits.
 
@@ -18,13 +18,13 @@ The **Rental-Management-System** automates the complexities of rental management
 * **Financial Tracking:** Monitor payments, overdue bills, and revenue reports.
 * **Security:** Role-based access control (Super Admin, Property Manager, Billing Admin).
 
-#### **👤 Tenant Portal** (`/login`)
+#### ** Tenant Portal** (`/login`)
 * **Secure Login:** Individual access for residents.
 * **Bill Viewing:** View detailed invoice breakdowns (Rent + Utilities + Adjustments).
 * **Payment Submission:** Upload proof of payment (bank transfer receipts) directly through the app (Integrated with ImgBB).
 * **Profile Management:** View lease details and assigned unit information.
 
-## **🛠️ Tech Stack**
+## ** Tech Stack**
 
 This project is built using a modern, type-safe stack:
 
@@ -39,7 +39,7 @@ This project is built using a modern, type-safe stack:
 * **Email:** Nodemailer
 * **File Storage:** ImgBB API
 
-## **⚙️ Installation & Setup**
+## ** Installation & Setup**
 
 ### **Prerequisites**
 
@@ -96,7 +96,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## **🧮 Billing Logic**
+## ** Billing Logic**
 
 The system uses the following formula to calculate the total due for an invoice:
 `Total = Base Rent + (Elec Usage × Rate) + (Water Usage × Rate) + Penalty + Prev Balance - Credit`
@@ -107,7 +107,7 @@ The system uses the following formula to calculate the total due for an invoice:
   * If an invoice is Pending and the Rent Period is in the past, status becomes Overdue.
   * Previous readings are auto-fetched from the last recorded invoice.
 
-## **📂 Project Structure**
+## ** Project Structure**
 
 ```
 src/
@@ -128,7 +128,7 @@ src/
 └── middleware.ts        # Auth & Role protection
 ```
 
-## **🤝 Contributing**
+## ** Contributing**
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
