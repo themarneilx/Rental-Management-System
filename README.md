@@ -8,7 +8,7 @@ The **Rental-Management-System** automates the complexities of rental management
 
 ### **Key Features**
 
-#### **🛡️ Admin Dashboard** (`/adminlog`)
+#### ** Admin Dashboard** (`/adminlog`)
 * **Billing Engine:** Automatic calculation of utilities based on meter readings with configurable dynamic rates.
   * Default Electricity Rate: ₱21.00 / kWh
   * Default Water Rate: ₱70.00 / m³
