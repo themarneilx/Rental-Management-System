@@ -2,7 +2,7 @@
 
 A modern, full-stack rental management solution designed for efficient property administration and tenant convenience. This system features a robust Admin Dashboard for property managers and a dedicated Tenant Portal for residents.
 
-## ** Overview**
+## **Overview**
 
 The **Rental-Management-System** automates the complexities of rental management. It handles split-period billing, utility calculations (water/electricity), room occupancy tracking, and tenant archives. It uses a custom billing engine to ensure accurate financial records, accounting for previous balances, penalties, and credits.
 
